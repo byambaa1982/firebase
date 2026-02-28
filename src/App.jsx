@@ -4,6 +4,7 @@ import HomePage from './HomePage'
 import Calculator from './Calculator'
 import ArduinoControl from './ArduinoControl'
 import SearchPage from './SearchPage'
+import ContactPage from './ContactPage'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/calculator" element={<Calculator />} />
         <Route path="/arduino" element={<ArduinoControl />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/contact" element={<ContactPage />} />
       </Routes>
     </BrowserRouter>
   )

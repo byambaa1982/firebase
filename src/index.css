@@ -188,3 +188,60 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Contact Page ───────────────────────── */
+.contact-hero {
+  text-align: center;
+  padding: 1rem 1rem 2rem;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  max-width: 540px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field-group label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.field-group input,
+.field-group textarea {
+  padding: 0.7rem 1rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #ffffff;
+  color: #1f2937;
+  transition: border-color 200ms;
+  resize: vertical;
+}
+
+.field-group input:focus,
+.field-group textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.success-box {
+  max-width: 480px;
+  margin: 1.5rem auto;
+  padding: 2rem;
+  border-radius: 16px;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  color: #166534;
+}

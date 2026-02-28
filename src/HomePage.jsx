@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 export default function HomePage() {
   return (
     <div className="site-shell">
@@ -6,7 +8,7 @@ export default function HomePage() {
         <nav className="topnav">
           <a href="#services">Services</a>
           <a href="#about">About</a>
-          <a href="#contact">Contact</a>
+          <Link to="/contact">Contact</Link>
         </nav>
       </header>
 
