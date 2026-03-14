@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from './AuthContext'
+import NavUser from './NavUser'
 
 export default function HomePage() {
   return (
@@ -6,9 +8,10 @@ export default function HomePage() {
       <header className="topbar">
         <div className="brand">Aminaa Studio</div>
         <nav className="topnav">
-          <a href="#services">Services</a>
+          <Link to="/science">Science</Link>
           <a href="#about">About</a>
           <Link to="/contact">Contact</Link>
+          <NavUser />
         </nav>
       </header>
 

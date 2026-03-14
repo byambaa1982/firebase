@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import NavUser from './NavUser'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', message: '' })
@@ -21,6 +22,7 @@ export default function ContactPage() {
         <nav className="topnav">
           <Link to="/">Home</Link>
           <Link to="/contact">Contact</Link>
+          <NavUser />
         </nav>
       </header>
 
