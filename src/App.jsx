@@ -7,6 +7,7 @@ import ArduinoControl from './ArduinoControl'
 import SearchPage from './SearchPage'
 import ContactPage from './ContactPage'
 import SciencePage from './SciencePage'
+import OrganPage from './OrganPage'
 import SignInPage from './SignInPage'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/science" element={<SciencePage />} />
+          <Route path="/science/:organ" element={<OrganPage />} />
           <Route path="/signin" element={<SignInPage />} />
         </Routes>
       </BrowserRouter>
