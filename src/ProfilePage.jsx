@@ -21,6 +21,22 @@ export default function ProfilePage() {
 
         if (userSnap.exists()) {
           setUserProfile(userSnap.data());
+        } else {
+          // Profile doesn't exist yet — create it
+          const { setDoc } = await import('firebase/firestore');
+          const newProfile = {
+            email: currentUser.email,
+            displayName: currentUser.displayName || currentUser.email.split('@')[0],
+            createdAt: new Date().toISOString(),
+            stats: {
+              totalDecks: 0,
+              totalCards: 0,
+              totalStudySessions: 0,
+              currentStreak: 0
+            }
+          };
+          await setDoc(userRef, newProfile);
+          setUserProfile(newProfile);
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);

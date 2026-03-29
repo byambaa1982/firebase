@@ -43,23 +43,27 @@ export function AuthProvider({ children }) {
 
   // Create user profile in Firestore
   const createUserProfile = async (user, displayName) => {
-    const userRef = doc(db, 'users', user.uid);
-    const userSnap = await getDoc(userRef);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) {
-      const userData = {
-        email: user.email,
-        displayName: displayName || user.displayName || user.email.split('@')[0],
-        createdAt: new Date().toISOString(),
-        stats: {
-          totalDecks: 0,
-          totalCards: 0,
-          totalStudySessions: 0,
-          currentStreak: 0
-        }
-      };
+      if (!userSnap.exists()) {
+        const userData = {
+          email: user.email,
+          displayName: displayName || user.displayName || user.email.split('@')[0],
+          createdAt: new Date().toISOString(),
+          stats: {
+            totalDecks: 0,
+            totalCards: 0,
+            totalStudySessions: 0,
+            currentStreak: 0
+          }
+        };
 
-      await setDoc(userRef, userData);
+        await setDoc(userRef, userData);
+      }
+    } catch (error) {
+      console.error('Error creating user profile:', error);
     }
   };
 
@@ -91,8 +95,12 @@ export function AuthProvider({ children }) {
 
   // Listen to auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      // Ensure profile exists for the user
+      if (user) {
+        await createUserProfile(user);
+      }
       setLoading(false);
     });
 

@@ -81,10 +81,16 @@ export default function DeckCard({ deck, onEdit, onDelete }) {
       {/* Card Actions */}
       <div className="border-t-2 border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50 p-4 flex gap-3">
         <Link
+          to={`/decks/${deck.id}/study`}
+          className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white text-center font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 text-sm"
+        >
+          Study
+        </Link>
+        <Link
           to={`/decks/${deck.id}/cards`}
           className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-center font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 text-sm"
         >
-          View Cards
+          Cards
         </Link>
         <button
           onClick={() => onEdit(deck)}

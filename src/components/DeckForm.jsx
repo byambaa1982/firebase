@@ -66,7 +66,7 @@ export default function DeckForm({ deck, onClose, userId }) {
       onClose();
     } catch (error) {
       console.error('Error saving deck:', error);
-      toast.error(`Failed to ${deck ? 'update' : 'create'} deck`);
+      toast.error(`Failed to ${deck ? 'update' : 'create'} deck: ${error.code || error.message}`);
     } finally {
       setLoading(false);
     }

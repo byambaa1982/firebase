@@ -6,14 +6,38 @@ import {
   deleteDoc,
   getDocs,
   getDoc,
+  setDoc,
   query,
   where,
-  orderBy,
   onSnapshot,
   serverTimestamp,
   increment
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+
+// Helper: safely update user stats (creates profile if missing)
+const safeUpdateUserStats = async (userId, statsUpdate) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, statsUpdate);
+  } catch (error) {
+    // If user doc doesn't exist, create it with defaults
+    if (error.code === 'not-found' || error.message?.includes('No document to update')) {
+      try {
+        const userRef = doc(db, 'users', userId);
+        await setDoc(userRef, {
+          createdAt: new Date().toISOString(),
+          stats: { totalDecks: 0, totalCards: 0, totalStudySessions: 0, currentStreak: 0 }
+        }, { merge: true });
+        await updateDoc(userRef, statsUpdate);
+      } catch (retryError) {
+        console.error('Error updating user stats:', retryError);
+      }
+    } else {
+      console.error('Error updating user stats:', error);
+    }
+  }
+};
 
 /**
  * Deck Service - Handles all Firestore operations for flashcard decks
@@ -22,6 +46,7 @@ import { db } from '../config/firebase';
 // Create a new deck
 export const createDeck = async (userId, deckData) => {
   try {
+    console.log('Creating deck for user:', userId, 'data:', deckData);
     const decksRef = collection(db, 'decks');
     const newDeck = {
       name: deckData.name,
@@ -35,16 +60,15 @@ export const createDeck = async (userId, deckData) => {
     };
 
     const docRef = await addDoc(decksRef, newDeck);
+    console.log('Deck created with ID:', docRef.id);
     
-    // Update user stats
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      'stats.totalDecks': increment(1)
-    });
+    // Update user stats (non-blocking)
+    safeUpdateUserStats(userId, { 'stats.totalDecks': increment(1) });
 
     return { id: docRef.id, ...newDeck };
   } catch (error) {
     console.error('Error creating deck:', error);
+    console.error('Error code:', error.code, 'Message:', error.message);
     throw error;
   }
 };
@@ -55,14 +79,20 @@ export const getUserDecks = async (userId) => {
     const decksRef = collection(db, 'decks');
     const q = query(
       decksRef,
-      where('createdBy', '==', userId),
-      orderBy('updatedAt', 'desc')
+      where('createdBy', '==', userId)
     );
 
     const querySnapshot = await getDocs(q);
     const decks = [];
     querySnapshot.forEach((doc) => {
       decks.push({ id: doc.id, ...doc.data() });
+    });
+
+    // Sort client-side: newest first
+    decks.sort((a, b) => {
+      const aTime = a.updatedAt?.toMillis?.() || 0;
+      const bTime = b.updatedAt?.toMillis?.() || 0;
+      return bTime - aTime;
     });
 
     return decks;
@@ -106,19 +136,29 @@ export const updateDeck = async (deckId, deckData) => {
   }
 };
 
-// Delete a deck
+// Delete a deck and all its cards
 export const deleteDeck = async (deckId, userId) => {
   try {
+    // Delete all cards in this deck first
+    const cardsRef = collection(db, 'cards');
+    const q = query(cardsRef, where('deckId', '==', deckId));
+    const cardSnap = await getDocs(q);
+    const batch = (await import('firebase/firestore')).writeBatch(db);
+    cardSnap.forEach((cardDoc) => {
+      batch.delete(cardDoc.ref);
+    });
+    await batch.commit();
+
+    // Delete the deck itself
     const deckRef = doc(db, 'decks', deckId);
     await deleteDoc(deckRef);
 
     // Update user stats
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      'stats.totalDecks': increment(-1)
+    safeUpdateUserStats(userId, {
+      'stats.totalDecks': increment(-1),
+      'stats.totalCards': increment(-(cardSnap.size))
     });
 
-    // TODO: Also delete all cards in this deck (Phase 3)
     return true;
   } catch (error) {
     console.error('Error deleting deck:', error);
@@ -132,8 +172,7 @@ export const subscribeToUserDecks = (userId, callback) => {
     const decksRef = collection(db, 'decks');
     const q = query(
       decksRef,
-      where('createdBy', '==', userId),
-      orderBy('updatedAt', 'desc')
+      where('createdBy', '==', userId)
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -141,9 +180,16 @@ export const subscribeToUserDecks = (userId, callback) => {
       querySnapshot.forEach((doc) => {
         decks.push({ id: doc.id, ...doc.data() });
       });
+      // Sort client-side: newest first
+      decks.sort((a, b) => {
+        const aTime = a.updatedAt?.toMillis?.() || 0;
+        const bTime = b.updatedAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
       callback(decks);
     }, (error) => {
       console.error('Error in deck subscription:', error);
+      callback([]);
     });
 
     return unsubscribe;
@@ -159,14 +205,20 @@ export const getPublicDecks = async (limit = 20) => {
     const decksRef = collection(db, 'decks');
     const q = query(
       decksRef,
-      where('isPublic', '==', true),
-      orderBy('updatedAt', 'desc')
+      where('isPublic', '==', true)
     );
 
     const querySnapshot = await getDocs(q);
     const decks = [];
     querySnapshot.forEach((doc) => {
       decks.push({ id: doc.id, ...doc.data() });
+    });
+
+    // Sort client-side: newest first
+    decks.sort((a, b) => {
+      const aTime = a.updatedAt?.toMillis?.() || 0;
+      const bTime = b.updatedAt?.toMillis?.() || 0;
+      return bTime - aTime;
     });
 
     return decks.slice(0, limit);
@@ -182,16 +234,14 @@ export const searchDecks = async (userId, searchTerm, category = null) => {
     const decksRef = collection(db, 'decks');
     let q = query(
       decksRef,
-      where('createdBy', '==', userId),
-      orderBy('updatedAt', 'desc')
+      where('createdBy', '==', userId)
     );
 
     if (category && category !== 'All') {
       q = query(
         decksRef,
         where('createdBy', '==', userId),
-        where('category', '==', category),
-        orderBy('updatedAt', 'desc')
+        where('category', '==', category)
       );
     }
 
