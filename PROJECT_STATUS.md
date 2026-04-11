@@ -1,73 +1,92 @@
-# Project Status
+# Project Status — CardSparks
+**AI-Powered Flashcard Study Platform** | React + Vite + Firebase + OpenAI
+Last Updated: April 11, 2026
 
-## Current Status
-- [ ] Project is in early development phase
-- [ ] Core features are being implemented
-- [ ] Initial design and architecture decisions have been made
-- [ ] Development environment is set up and configured
+---
+
+## What's Built (Completed)
+
+| Feature | Status |
+|---------|--------|
+| React + Vite project setup | ✅ Done |
+| Firebase project + config | ✅ Done |
+| Email/Password + Google OAuth | ✅ Done |
+| AuthContext + ProtectedRoute | ✅ Done |
+| User profiles in Firestore | ✅ Done |
+| Navbar + responsive layout | ✅ Done |
+| Deck CRUD (create, edit, delete) | ✅ Done |
+| Real-time Firestore deck sync | ✅ Done |
+| Deck search + category filtering | ✅ Done |
+| DeckCard, DeckForm components | ✅ Done |
+| HomePage, LoginPage, ProfilePage | ✅ Done |
+| AI flashcard generation (fixed) | ✅ Done |
+
+---
 
 ## In Progress
-- [ ] Building out core functionality
-- [ ] Setting up the backend infrastructure
-- [ ] Designing the user interface and experience
-- [ ] Implementing authentication and user management
+
+- [ ] Study session UI (FlashcardFlip, spaced repetition logic)
+- [ ] Card management (CardsPage, CardForm, CardPreview)
+- [ ] Analytics dashboard (study streaks, progress tracking)
+- [ ] AI tutor — explain wrong answers, give hints during study
+
+---
 
 ## Next Steps
-1. **Phase 1 - Foundation**
-   - Complete core feature development
-   - Set up CI/CD pipeline
-   - Write unit and integration tests
-   - Deploy to staging environment
 
-2. **Phase 2 - Beta Launch**
-   - Conduct user testing and gather feedback
-   - Fix bugs and optimize performance
-   - Implement analytics and tracking
-   - Launch beta version to a limited audience
+### Phase 1 — Complete Core Study Features
+- [ ] Finish `StudyPage.jsx` with flip animations (framer-motion)
+- [ ] Wire up `spacedRepetition.js` to Firestore user progress
+- [ ] Complete `CardsPage.jsx` and card CRUD operations
+- [ ] Add drag-and-drop card reordering (`@dnd-kit/core`)
 
-3. **Phase 3 - Public Launch**
-   - Address feedback from beta users
-   - Scale infrastructure as needed
-   - Launch marketing campaign
-   - Open platform to the public
+### Phase 2 — AI Tutor & Enhanced Generation
+- [ ] Set up Firebase Cloud Functions (or Railway API) as secure OpenAI proxy
+- [ ] AI explains wrong answers during study sessions
+- [ ] PDF/document upload → auto-generate flashcards
+- [ ] Progressive hints system during study mode
 
-4. **Phase 4 - Growth**
-   - Grow user base through marketing and SEO
-   - Implement additional features based on user feedback
-   - Build partnerships and integrations
-   - Expand to new markets or audiences
+### Phase 3 — Analytics & Gamification
+- [ ] Study streak tracking + `StreakDisplay` component
+- [ ] Progress charts with recharts
+- [ ] Daily study goals and reminders
+- [ ] Public deck sharing and discovery
+
+### Phase 4 — Monetization & Launch
+- [ ] Implement Stripe subscription billing
+- [ ] Gate AI features behind Pro plan
+- [ ] Add usage limits for free tier (e.g., AI generation quota)
+- [ ] SEO optimization and landing page polish
+- [ ] Launch on Product Hunt / Reddit study communities
+
+---
 
 ## Monetization Strategy
 
-### Short-Term Goals
-- **Freemium Model**: Offer a free tier with basic features and a paid tier with advanced features
-- **Subscription Plans**: Implement monthly and annual subscription options
-  - Basic Plan
-  - Pro Plan
-  - Enterprise Plan
+### Free Tier
+- Up to 5 decks, 50 cards total
+- Manual card creation only
+- Basic study mode
 
-### Mid-Term Goals
-- **Advertising Revenue**: Introduce non-intrusive ads for free-tier users
-- **Affiliate Marketing**: Partner with relevant businesses for affiliate revenue
-- **Premium Features**: Continuously develop and release premium features
+### Pro Plan (~$8/month)
+- Unlimited decks and cards
+- AI flashcard generation from text, topics, PDFs
+- AI tutor during study sessions (hints + explanations)
+- Advanced analytics and progress tracking
+- Priority support
 
-### Long-Term Goals
-- **Enterprise Solutions**: Offer custom enterprise packages with dedicated support
-- **API Access**: Monetize API access for third-party developers
-- **Marketplace**: Create a marketplace for third-party integrations and plugins
-- **Data Insights**: Offer anonymized data insights and analytics services (with user consent)
+### Future Revenue Streams
+- **Team/Classroom Plan**: Teachers manage multiple students, share decks
+- **Marketplace**: Buy/sell premium pre-made deck packs
+- **API Access**: Let third-party apps generate cards via the AI backend
+
+---
 
 ## End Goal
-The end goal is to build a sustainable and profitable web platform that delivers genuine value to its users. 
-Key milestones include:
 
-- 🎯 **Revenue Target**: Achieve consistent monthly recurring revenue (MRR)
-- 👥 **User Growth**: Build a loyal and engaged user base
-- 📈 **Profitability**: Reach break-even point within the first year and achieve profitability in year two
-- 🌍 **Scale**: Expand the platform globally and become a recognized leader in the space
-- 💼 **Business Value**: Build a business that is attractive for potential investors or acquisition opportunities
+Build **CardSparks** into a profitable SaaS product that helps students study smarter using AI.
 
-## Notes
-- Regularly review and update this document as the project evolves
-- Track KPIs and metrics to measure progress towards monetization goals
-- Stay adaptable and pivot strategies based on market feedback
+- **Revenue Target**: $5,000 MRR within 12 months of public launch
+- **User Growth**: 10,000 active users in year one
+- **Profitability**: Cover infrastructure costs within 3 months, reach profit by month 6
+- **Long-Term**: Become a go-to AI study tool, attracting acquisition interest or Series A investment
