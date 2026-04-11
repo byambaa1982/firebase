@@ -1,16 +1,23 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useEffect, useRef } from 'react'
 
 // ── Utility: format time ──
 function formatTime(date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
-function formatDate(date) {
-  return date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+
+function formatSnapshotTime(timestamp) {
+  return new Date(timestamp).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export default function ControlCenter() {
   const CAMERA_FEED_URL = 'http://192.168.1.181:8080'
+  const SCREENSHOT_STORAGE_KEY = 'cc_camera_history'
+  const AUTO_SCREENSHOT_INTERVAL_MS = 4 * 60 * 60 * 1000
 
   // ── Activity Log (defined early so other sections can log) ──
   const [activityLog, setActivityLog] = useState(() => {
@@ -39,6 +46,87 @@ export default function ControlCenter() {
   // ── Remote camera feed ──
   const [cameraFeedEnabled, setCameraFeedEnabled] = useState(true)
   const [cameraReloadKey, setCameraReloadKey] = useState(0)
+  const [cameraSnapshots, setCameraSnapshots] = useState(() => {
+    const saved = localStorage.getItem(SCREENSHOT_STORAGE_KEY)
+    return saved ? JSON.parse(saved) : []
+  })
+  const [showSnapshotHistory, setShowSnapshotHistory] = useState(false)
+  const [snapshotStatus, setSnapshotStatus] = useState('')
+  const latestSnapshot = cameraSnapshots[0] || null
+  const screenshotIntervalRef = useRef(null)
+  const cameraStreamSrc = `${CAMERA_FEED_URL}?reload=${cameraReloadKey}`
+
+  useEffect(() => {
+    localStorage.setItem(SCREENSHOT_STORAGE_KEY, JSON.stringify(cameraSnapshots.slice(0, 24)))
+  }, [cameraSnapshots])
+
+  const captureCameraScreenshot = async (reason = 'manual') => {
+    if (!cameraFeedEnabled) {
+      setSnapshotStatus('Feed is paused. Resume it before capturing a screenshot.')
+      return
+    }
+
+    try {
+      setSnapshotStatus(reason === 'auto' ? 'Saving scheduled screenshot...' : 'Capturing screenshot...')
+
+      const snapshotUrl = `${CAMERA_FEED_URL}?snapshot=${Date.now()}`
+      const frame = await new Promise((resolve, reject) => {
+        const image = new Image()
+        image.crossOrigin = 'anonymous'
+        image.onload = () => resolve(image)
+        image.onerror = () => reject(new Error('The camera feed blocked screenshot capture.'))
+        image.src = snapshotUrl
+      })
+
+      const canvas = document.createElement('canvas')
+      const width = Math.min(frame.naturalWidth || 1280, 1280)
+      const height = Math.min(frame.naturalHeight || 720, 720)
+      canvas.width = width
+      canvas.height = height
+
+      const context = canvas.getContext('2d')
+      if (!context) {
+        throw new Error('Canvas is not available in this browser.')
+      }
+
+      context.drawImage(frame, 0, 0, width, height)
+
+      const entry = {
+        id: Date.now(),
+        takenAt: Date.now(),
+        image: canvas.toDataURL('image/jpeg', 0.82),
+      }
+
+      setCameraSnapshots(prev => [entry, ...prev].slice(0, 24))
+      setSnapshotStatus(reason === 'auto' ? 'Scheduled screenshot saved.' : 'Screenshot saved.')
+      addLog('connection', `Camera screenshot saved (${reason === 'auto' ? 'scheduled' : 'manual'})`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Screenshot capture failed.'
+      setSnapshotStatus(message)
+      addLog('connection', `Camera screenshot failed: ${message}`)
+    }
+  }
+
+  useEffect(() => {
+    if (!cameraFeedEnabled) {
+      if (screenshotIntervalRef.current) {
+        window.clearInterval(screenshotIntervalRef.current)
+        screenshotIntervalRef.current = null
+      }
+      return undefined
+    }
+
+    screenshotIntervalRef.current = window.setInterval(() => {
+      captureCameraScreenshot('auto')
+    }, AUTO_SCREENSHOT_INTERVAL_MS)
+
+    return () => {
+      if (screenshotIntervalRef.current) {
+        window.clearInterval(screenshotIntervalRef.current)
+        screenshotIntervalRef.current = null
+      }
+    }
+  }, [cameraFeedEnabled])
 
   const toggleCameraFeed = () => {
     setCameraFeedEnabled(prev => {
@@ -82,7 +170,6 @@ export default function ControlCenter() {
   }
 
   const allOn = lights.every(Boolean)
-  const allOff = lights.every(l => !l)
   const toggleAllLights = () => {
     setLights(Array(16).fill(allOn ? false : true))
     addLog('light', `All lights turned ${allOn ? 'OFF' : 'ON'}`)
@@ -136,10 +223,6 @@ export default function ControlCenter() {
   ]
 
   const currentStage = stages.find(s => s.key === growStage) || stages[0]
-
-  // ── Notes ──
-  const [note, setNote] = useState(() => localStorage.getItem('cc_note') || '')
-  useEffect(() => { localStorage.setItem('cc_note', note) }, [note])
 
   // ── Arduino Devices ──
   const defaultDevices = [
@@ -208,58 +291,8 @@ export default function ControlCenter() {
 
   const connectedCount = devices.filter(d => d.status === 'connected').length
 
-  // ── Resizable panels ──
-  const [lightsPct, setLightsPct] = useState(() => {
-    const s = localStorage.getItem('cc_lightsPct'); return s ? Number(s) : 60
-  })
-  const [waterPct, setWaterPct] = useState(() => {
-    const s = localStorage.getItem('cc_waterPct'); return s ? Number(s) : 50
-  })
-  useEffect(() => { localStorage.setItem('cc_lightsPct', String(lightsPct)) }, [lightsPct])
-  useEffect(() => { localStorage.setItem('cc_waterPct', String(waterPct)) }, [waterPct])
-
-  const leftColRef = useRef(null)
-  const bottomRowRef = useRef(null)
-  const draggingRef = useRef(null) // 'vertical' | 'horizontal' | null
-
-  const onMouseDown = useCallback((axis) => (e) => {
-    e.preventDefault()
-    draggingRef.current = axis
-    document.body.style.cursor = axis === 'vertical' ? 'row-resize' : 'col-resize'
-    document.body.style.userSelect = 'none'
-  }, [])
-
-  useEffect(() => {
-    const onMouseMove = (e) => {
-      if (!draggingRef.current) return
-      if (draggingRef.current === 'vertical' && leftColRef.current) {
-        const rect = leftColRef.current.getBoundingClientRect()
-        const y = e.clientY - rect.top
-        const pct = Math.min(85, Math.max(25, (y / rect.height) * 100))
-        setLightsPct(pct)
-      }
-      if (draggingRef.current === 'horizontal' && bottomRowRef.current) {
-        const rect = bottomRowRef.current.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const pct = Math.min(80, Math.max(20, (x / rect.width) * 100))
-        setWaterPct(pct)
-      }
-    }
-    const onMouseUp = () => {
-      draggingRef.current = null
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
-  }, [])
-
   return (
-    <div className="h-full bg-gradient-to-br from-slate-900 via-gray-900 to-zinc-900 flex flex-col overflow-hidden">
+    <div className="h-full min-h-0 bg-gradient-to-br from-slate-900 via-gray-900 to-zinc-900 flex flex-col overflow-hidden">
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-8 py-4 border-b border-white/5">
         <h1 className="text-xl font-bold text-white tracking-wide">🌱 Microgreen Control Center</h1>
@@ -270,11 +303,10 @@ export default function ControlCenter() {
       </div>
 
       {/* ── Main Content ── */}
-      <div className="flex-1 flex overflow-hidden">
-      {/* ── Left Column — Grow Lights + Camera ── */}
-      <div ref={leftColRef} className="flex-1 flex flex-col p-6" style={{ gap: 0 }}>
-        {/* Grow Lights 2×8 */}
-        <div className="bg-white/5 rounded-3xl p-6 border border-white/5 flex flex-col overflow-hidden" style={{ height: `${lightsPct}%` }}>
+      <div className="flex-1 min-h-0 flex overflow-hidden gap-5 p-5">
+      {/* ── Left Column — Lights + Watering ── */}
+      <div className="w-[360px] min-w-[320px] flex flex-col gap-5 overflow-hidden">
+        <div className="bg-white/5 rounded-3xl p-5 border border-white/5 flex flex-col min-h-0 overflow-hidden">
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm text-white/40 font-semibold uppercase tracking-widest">💡 Grow Lights</p>
             <button
@@ -286,7 +318,7 @@ export default function ControlCenter() {
           </div>
 
           {/* Schedule indicator */}
-          <div className="flex items-center gap-2 mb-5 mt-2">
+          <div className="flex items-center gap-2 mb-4 mt-2">
             <div className={`w-2 h-2 rounded-full ${isScheduleOn ? 'bg-yellow-400 shadow-lg shadow-yellow-400/50 animate-pulse' : 'bg-white/20'}`} />
             <span className="text-xs text-white/40">
               Schedule: {scheduleOnTime}–{scheduleOffTime} ·{' '}
@@ -298,12 +330,12 @@ export default function ControlCenter() {
           </div>
 
           {/* 2×8 Light Grid — expanded */}
-          <div className="grid grid-cols-8 gap-3 flex-1 min-h-0">
+          <div className="grid grid-cols-4 gap-2.5 flex-1 min-h-0 auto-rows-fr">
             {lights.map((on, idx) => (
               <button
                 key={idx}
                 onClick={() => toggleLight(idx)}
-                className={`rounded-2xl transition-all duration-300 border flex items-center justify-center text-2xl ${
+                className={`aspect-square rounded-2xl transition-all duration-300 border flex items-center justify-center text-xl ${
                   on
                     ? 'bg-gradient-to-br from-yellow-300 to-amber-400 border-yellow-500/50 shadow-lg shadow-yellow-400/30 scale-[1.03]'
                     : 'bg-white/5 border-white/10 hover:bg-white/10'
@@ -321,19 +353,7 @@ export default function ControlCenter() {
           </p>
         </div>
 
-        {/* ── Vertical resize handle ── */}
-        <div
-          onMouseDown={onMouseDown('vertical')}
-          className="flex items-center justify-center cursor-row-resize group py-1 flex-shrink-0 z-10"
-          title="Drag to resize"
-        >
-          <div className="w-16 h-1 rounded-full bg-white/10 group-hover:bg-white/30 group-active:bg-blue-400/60 transition-all" />
-        </div>
-
-        {/* ── Watering Schedule + Camera side by side ── */}
-        <div ref={bottomRowRef} className="flex overflow-hidden" style={{ height: `${100 - lightsPct}%`, gap: 0 }}>
-          {/* Watering Schedule */}
-          <div className="bg-white/5 rounded-3xl p-5 border border-white/5 flex flex-col overflow-y-auto" style={{ width: `${waterPct}%` }}>
+        <div className="bg-white/5 rounded-3xl p-5 border border-white/5 flex flex-col overflow-y-auto">
             <p className="text-xs text-white/40 font-semibold uppercase tracking-widest mb-3">💧 Watering Schedule</p>
 
             {/* Last watered & Next water */}
@@ -395,77 +415,88 @@ export default function ControlCenter() {
                 <p className="text-xs text-cyan-300/80">💡 {currentStage.tip}</p>
               </div>
             </div>
-          </div>
+        </div>
+      </div>
 
-          {/* ── Horizontal resize handle ── */}
-          <div
-            onMouseDown={onMouseDown('horizontal')}
-            className="flex items-center justify-center cursor-col-resize group px-1 flex-shrink-0 z-10"
-            title="Drag to resize"
-          >
-            <div className="h-16 w-1 rounded-full bg-white/10 group-hover:bg-white/30 group-active:bg-blue-400/60 transition-all" />
+      {/* ── Main Camera Feed ── */}
+      <div className="flex-1 min-w-0 bg-white/5 rounded-[2rem] p-5 border border-white/5 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div>
+            <p className="text-xs text-white/40 font-semibold uppercase tracking-widest">📷 Microgreen Feed</p>
+            <p className="text-sm text-white/25 mt-1">Full-height monitoring view for the grow tray.</p>
           </div>
-
-          {/* Microgreen Status Camera */}
-          <div className="bg-white/5 rounded-3xl p-5 border border-white/5 flex flex-col overflow-hidden" style={{ width: `${100 - waterPct}%` }}>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-white/40 font-semibold uppercase tracking-widest">📷 Microgreen Status</p>
-              <div className="flex items-center gap-2">
-                {cameraFeedEnabled && (
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-lg shadow-red-500/50" />
-                    <span className="text-[10px] text-red-400 font-bold uppercase">Live</span>
-                  </div>
-                )}
-                <button
-                  onClick={reloadCameraFeed}
-                  className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
-                >
-                  Refresh
-                </button>
-                <button
-                  onClick={toggleCameraFeed}
-                  className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg transition-all ${
-                    cameraFeedEnabled
-                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                  }`}
-                >
-                  {cameraFeedEnabled ? 'Pause Feed' : 'Resume Feed'}
-                </button>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {cameraFeedEnabled && (
+              <div className="flex items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1.5">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-lg shadow-red-500/50" />
+                <span className="text-[10px] text-red-400 font-bold uppercase">Live</span>
               </div>
+            )}
+            <button
+              onClick={reloadCameraFeed}
+              className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
+            >
+              Refresh
+            </button>
+            <button
+              onClick={() => captureCameraScreenshot('manual')}
+              className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
+            >
+              Screenshot
+            </button>
+            <button
+              onClick={() => setShowSnapshotHistory(true)}
+              className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-all"
+            >
+              History
+            </button>
+            <button
+              onClick={toggleCameraFeed}
+              className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg transition-all ${
+                cameraFeedEnabled
+                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                  : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+              }`}
+            >
+              {cameraFeedEnabled ? 'Pause Feed' : 'Resume Feed'}
+            </button>
+            <a
+              href={CAMERA_FEED_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg bg-black/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/70 hover:bg-black/80 hover:text-white transition-all"
+            >
+              Open feed
+            </a>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 bg-black rounded-[1.75rem] border border-white/10 overflow-hidden relative flex items-center justify-center">
+          {cameraFeedEnabled ? (
+            <img
+              key={cameraReloadKey}
+              src={cameraStreamSrc}
+              alt="Microgreen camera feed"
+              className="w-full h-full object-cover"
+              loading="eager"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 text-center px-6">
+              <span className="text-5xl opacity-30">📷</span>
+              <span className="text-lg font-semibold text-white/30">Camera feed paused</span>
+              <span className="text-sm text-white/15 max-w-sm">Resume the local feed to return to the fullscreen microgreen monitoring view.</span>
             </div>
-            <div className="flex-1 bg-black/60 rounded-2xl border border-white/10 overflow-hidden relative flex items-center justify-center">
-              {cameraFeedEnabled ? (
-                <iframe
-                  key={cameraReloadKey}
-                  src={CAMERA_FEED_URL}
-                  title="Microgreen camera feed"
-                  className="w-full h-full border-0"
-                  allow="camera; microphone; autoplay"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-2">
-                  <span className="text-4xl opacity-30">📷</span>
-                  <span className="text-sm font-semibold text-white/30">Camera feed paused</span>
-                  <span className="text-xs text-white/15">Resume the local feed when you want to monitor the tray.</span>
-                </div>
-              )}
-              <a
-                href={CAMERA_FEED_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="absolute bottom-3 right-3 rounded-lg bg-black/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/70 hover:bg-black/80 hover:text-white transition-all"
-              >
-                Open feed
-              </a>
-            </div>
+          )}
+          <div className="absolute bottom-4 left-4 rounded-xl bg-black/55 px-3 py-2 text-[11px] text-white/70 backdrop-blur-sm">
+            <p>Auto screenshot: every 4 hours</p>
+            <p className="text-white/40">{latestSnapshot ? `Last saved ${formatSnapshotTime(latestSnapshot.takenAt)}` : 'No screenshots saved yet'}</p>
+            {snapshotStatus && <p className="text-emerald-300/80 mt-1">{snapshotStatus}</p>}
           </div>
         </div>
       </div>
 
       {/* ── Right Column — Devices + Log ── */}
-      <div className="w-[360px] bg-white/[0.03] backdrop-blur-xl border-l border-white/5 p-5 flex flex-col gap-4 overflow-hidden">
+      <div className="w-[320px] min-w-[300px] bg-white/[0.03] backdrop-blur-xl border border-white/5 rounded-[2rem] p-5 flex flex-col gap-4 overflow-hidden">
 
         {/* ── Arduino Device Hub ── */}
         <div className="bg-white/5 rounded-3xl p-4 border border-white/5 flex-1 flex flex-col min-h-0">
@@ -646,6 +677,62 @@ export default function ControlCenter() {
         <p className="text-center text-xs text-white/15">Control Center v1.0</p>
       </div>
       </div>
+
+      {showSnapshotHistory && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
+          <div className="h-full max-h-[90vh] w-full max-w-6xl rounded-[2rem] border border-white/10 bg-slate-950/95 p-6 shadow-2xl shadow-black/40 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <div>
+                <p className="text-xs text-white/40 font-semibold uppercase tracking-widest">📚 Camera History</p>
+                <p className="text-sm text-white/30 mt-1">Saved screenshots from the microgreen feed, newest first.</p>
+              </div>
+              <button
+                onClick={() => setShowSnapshotHistory(false)}
+                className="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-white/70 hover:bg-white/20 hover:text-white transition-all"
+              >
+                Close
+              </button>
+            </div>
+
+            {cameraSnapshots.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.02] text-center px-6">
+                <span className="text-5xl opacity-30 mb-3">🖼️</span>
+                <p className="text-lg font-semibold text-white/40">No screenshots saved yet</p>
+                <p className="text-sm text-white/20 mt-2">Leave the feed running for the 4-hour capture cycle or use the Screenshot button to save one now.</p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto pr-1">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {cameraSnapshots.map(snapshot => (
+                    <div key={snapshot.id} className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-3">
+                      <div className="aspect-video overflow-hidden rounded-[1.2rem] bg-black">
+                        <img
+                          src={snapshot.image}
+                          alt={`Microgreen screenshot from ${formatSnapshotTime(snapshot.takenAt)}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white/80">{formatSnapshotTime(snapshot.takenAt)}</p>
+                          <p className="text-[11px] text-white/30">Saved to local browser history</p>
+                        </div>
+                        <a
+                          href={snapshot.image}
+                          download={`microgreen-${snapshot.takenAt}.jpg`}
+                          className="rounded-lg bg-white/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white/70 hover:bg-white/20 hover:text-white transition-all"
+                        >
+                          Download
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
