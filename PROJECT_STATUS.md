@@ -1,17 +1,70 @@
 # Project Status — Aminaa Studio
 
-## Goals
+**Stack:** React 19 + Vite 7, React Router v6, Firebase v12 (Auth + Hosting), Tailwind CSS (partial)
 
-- Fully describe each organ in the torso area, covering their name, location, and biological functions
-- Build a functioning science platform that I and others can use to study and review biology
-- Make the science section an interactive, educational resource — not just a visual display
+---
+
+## Completed Features
+
+### Science / Biology Section
+- **Interactive anatomy map** (`/science`) — clickable hotspot overlay on a full torso illustration; 9 organs mapped with hover highlight and label
+- **All 9 organ pages** fully implemented with name, image, and written description:
+  - Brain, Heart, Lungs, Liver, Kidneys, Stomach, Pancreas, Intestines, Bladder
+- Invalid organ slug shows a "Organ not found" fallback with a back button
+
+### Authentication
+- Google Sign-In (popup) via Firebase Auth — fully working
+- `AuthContext` provides `user`, `signInWithGoogle`, and `signOut` across the app
+- `NavUser` shows avatar + first name when signed in, "Sign In" link when not
+- Redirect to home after successful sign-in
+
+### Home Page (`/`)
+- Branded "Aminaa Studio" header with nav links (Science, About, Contact)
+- Animated CSS balloon hero scene
+- 3 service cards: Brand Identity, Web Development, Growth Strategy
+- Footer: © 2026 Aminaa Studio
+
+### Calculator (`/calculator`)
+- Scientific calculator with memory (MC, MR, M−, M+), √, %, π, power, and standard operators
+- LCD-style display with solar-panel aesthetic
+
+### Contact Page (`/contact`)
+- Form with Name, Email, and Message fields
+- Shows confirmation UI after submit (no backend — data is not saved)
+
+### Sign-In Page (`/signin`)
+- Centered card with "Sign in with Google" button; auto-redirects on success
+
+### Search Page (`/search`)
+- Redirects the query to Google in a new tab (no internal search index)
+
+---
+
+## Known Gaps / In Progress
+
+| Area | Status | Notes |
+|---|---|---|
+| Contact form backend | Not implemented | Submissions are not saved or emailed anywhere |
+| Arduino control (`/arduino`) | UI stub only | Simulates connect/LED/PWM with `setTimeout` + `console.log`; Web Serial API not wired up |
+| Internal search | Not implemented | Currently just a Google redirect |
+| `index.html` title | Wrong | Still shows `"firebase"` instead of `"Aminaa Studio"` |
+| Homepage nav | Incomplete | Calculator, Arduino, and Search pages have no links from the homepage |
+| Firestore / database | Not configured | No persistent data storage for any feature |
+| Unused assets | Cleanup needed | `react.svg`, `Screenshot (3).png`, and `Turkey Power Walk.json` (root) are not used |
+
+---
 
 ## Next Steps
 
-- Write descriptions for each organ that already has a picture in the app
-- Replace old/placeholder organ images with better quality ones
-- Continue expanding organ coverage across the torso region
+- Add a real backend to the contact form (Firebase Firestore write or EmailJS)
+- Implement Web Serial API in ArduinoControl for real hardware communication
+- Fix `index.html` page title to "Aminaa Studio"
+- Add homepage or nav links to Calculator, Search, and Arduino pages
+- Consider expanding biology content: more organs, quiz/review mode, or labeled diagrams
+- Replace placeholder or low-quality organ images with higher-resolution ones
+
+---
 
 ## End Goal
 
-A complete, polished biology study platform integrated into Aminaa Studio — where users can navigate the human body, read about each organ's role and function, and use the site as a reliable review tool for biology.
+A complete, polished biology study platform and personal tools suite integrated into Aminaa Studio — where users can navigate the human body interactively, read accurate organ descriptions, use built-in tools (calculator, search), and rely on the site as a biology review resource.
