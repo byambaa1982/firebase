@@ -54,8 +54,13 @@
 
 ---
 
-## Next Steps (Bucket List)
+## Next Steps + Bucket List
 
+- Add a real backend to the contact form (Firebase Firestore write or EmailJS)
+- Implement Web Serial API in ArduinoControl for real hardware communication
+- Fix `index.html` page title to "Aminaa Studio"
+- Add homepage or nav links to Calculator, Search, and Arduino pages
+- Consider expanding biology content: more organs, quiz/review mode, or labeled diagrams
 - [ ] Replace old/low-quality organ images with better ones
 - [ ] Add written descriptions to each organ that already has an image
 - [ ] Add more organ routes (expand beyond current 9)
