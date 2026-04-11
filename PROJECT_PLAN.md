@@ -4,6 +4,144 @@ Personal website for monitoring and maintaining my microgreens grow setup.
 
 ---
 
+## Database Schema
+
+### Firebase Firestore
+
+#### `users/{uid}`
+Stores per-user profile and notification preferences.
+```
+{
+  uid:          string,       // Firebase Auth UID
+  email:        string,
+  displayName:  string,
+  createdAt:    timestamp,
+  settings: {
+    notifyWatering:  boolean, // push notifications for watering reminders
+    notifyHarvest:   boolean, // push notification when tray is ready
+    notifyOffline:   boolean, // alert if Arduino goes offline
+    fcmToken:        string   // Firebase Cloud Messaging token
+  }
+}
+```
+
+#### `users/{uid}/trays/{trayId}`
+Each active or past microgreen tray session.
+```
+{
+  trayId:        string,      // auto-generated document ID
+  variety:       string,      // e.g. "radish", "wheatgrass", "pea", "sunflower"
+  seedDate:      timestamp,   // when seeds were planted
+  currentStage:  string,      // "soaking" | "blackout" | "germination" | "growth" | "harvest"
+  harvestDate:   timestamp | null,  // actual harvest date (null if still growing)
+  expectedHarvest: timestamp, // calculated from variety profile
+  lightHours:    number,      // hours of light per day (auto-set from variety)
+  waterInterval: number,      // watering interval in hours (auto-set from variety)
+  notes:         string,      // free-text grow notes
+  isActive:      boolean,     // true = currently growing, false = archived
+  createdAt:     timestamp,
+  updatedAt:     timestamp
+}
+```
+
+#### `users/{uid}/trays/{trayId}/waterLogs/{logId}`
+Individual watering events for a tray.
+```
+{
+  logId:      string,         // auto-generated
+  timestamp:  timestamp,      // when watering occurred
+  method:     string,         // "manual" | "auto"
+  stage:      string,         // growth stage at time of watering
+  notes:      string | null   // optional note
+}
+```
+
+#### `varieties/{varietyId}`
+Reference collection of microgreen profiles (shared, read-only).
+```
+{
+  varietyId:      string,     // e.g. "radish"
+  name:          string,     // display name
+  lightHours:    number,     // recommended daily light hours (e.g. 14)
+  waterFrequency: number,   // times per day (e.g. 2)
+  soakTime:      number,     // soak duration in hours
+  blackoutDays:  number,     // days in blackout stage
+  daysToHarvest: [number, number],  // range, e.g. [6, 10]
+  tips:          string      // growing tips text
+}
+```
+
+### Firebase Realtime Database
+
+Used for low-latency, real-time communication between the website and Arduino hardware.
+
+#### `/devices/{deviceId}/status`
+Arduino heartbeat and connection state.
+```
+{
+  online:       boolean,      // true when Arduino is connected
+  lastHeartbeat: number,      // Unix timestamp of last ping
+  ip:           string,       // device IP on local network
+  firmware:     string        // firmware version string
+}
+```
+
+#### `/devices/{deviceId}/sensors`
+Live sensor readings written by the Arduino.
+```
+{
+  soilMoisture:  number,      // percentage (0–100)
+  temperature:   number,      // °C
+  humidity:      number,      // percentage (0–100)
+  updatedAt:     number       // Unix timestamp
+}
+```
+
+#### `/devices/{deviceId}/commands`
+Commands sent from the website for the Arduino to read and execute.
+```
+{
+  lights: {
+    state:    boolean,        // true = on, false = off
+    updatedAt: number
+  },
+  water: {
+    trigger:   boolean,       // set to true → Arduino runs pump, then resets
+    duration:  number,        // pump run time in seconds
+    updatedAt: number
+  }
+}
+```
+
+### Browser localStorage
+
+Client-side state that persists between sessions without a server round-trip.
+
+| Key                      | Type       | Description                                    |
+|--------------------------|------------|------------------------------------------------|
+| `cc_activityLog`         | JSON array | Last 200 activity log entries                  |
+| `cc_lastWatered`         | number     | Unix timestamp of last manual watering         |
+| `cc_growStage`           | string     | Current growth stage selection                 |
+| `cc_arduino_devices`     | JSON array | List of configured Arduino devices             |
+| `cc_camera_history`      | JSON array | Last 24 camera screenshots (base64 JPEG)       |
+
+### Entity Relationship Summary
+
+```
+users
+ └── trays (1-to-many)
+       └── waterLogs (1-to-many)
+
+varieties (shared reference collection)
+
+devices (Realtime DB)
+ ├── status
+ ├── sensors
+ └── commands
+```
+
+---
+
 ## Phase 1: Foundation — DONE
 
 - [x] Control Center dashboard with header, live clock, activity log
