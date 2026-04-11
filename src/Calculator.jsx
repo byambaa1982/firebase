@@ -51,7 +51,7 @@ export default function Calculator() {
   const lightGrayBtn = `${buttonBase} bg-gradient-to-b from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-500 shadow border border-gray-200 text-lg`
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
+    <div className="min-h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
       {/* Calculator Body */}
       <div 
         className="relative bg-gradient-to-b from-gray-700 via-gray-800 to-gray-900 p-6 rounded-3xl shadow-2xl w-full max-w-md"
@@ -130,13 +130,7 @@ export default function Calculator() {
           </div>
         </div>
 
-        {/* Back to home link */}
-        <a
-          href="/"
-          className="block text-center mt-5 text-gray-400 hover:text-gray-200 text-sm transition"
-        >
-          ← Back to Home
-        </a>
+
       </div>
     </div>
   )

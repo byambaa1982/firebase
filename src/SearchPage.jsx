@@ -12,18 +12,12 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex flex-col items-center justify-center p-4">
+    <div className="min-h-full bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex flex-col items-center justify-center p-4">
       <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8 max-w-lg w-full">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
             Google Search
           </h1>
-          <Link
-            to="/"
-            className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full transition"
-          >
-            ← Back
-          </Link>
         </div>
 
         <form onSubmit={handleGoogleSearch} className="space-y-4">
@@ -53,6 +47,14 @@ export default function SearchPage() {
         </form>
 
         <div className="mt-6 pt-6 border-t border-gray-200">
+          <div className="mb-4 text-center">
+            <Link
+              to="/"
+              className="inline-flex items-center justify-center rounded-lg border border-violet-200 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50 transition"
+            >
+              Back to local home
+            </Link>
+          </div>
           <p className="text-sm text-gray-500 text-center">
             Results will open in a new tab
           </p>

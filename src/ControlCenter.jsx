@@ -10,6 +10,8 @@ function formatDate(date) {
 }
 
 export default function ControlCenter() {
+  const CAMERA_FEED_URL = 'http://192.168.1.181:8080'
+
   // ── Activity Log (defined early so other sections can log) ──
   const [activityLog, setActivityLog] = useState(() => {
     const saved = localStorage.getItem('cc_activityLog')
@@ -34,48 +36,22 @@ export default function ControlCenter() {
   const [logFilter, setLogFilter] = useState('all')
   const filteredLogs = logFilter === 'all' ? activityLog : activityLog.filter(l => l.type === logFilter)
 
-  // ── Webcam ──
-  const videoRef = useRef(null)
-  const [camActive, setCamActive] = useState(false)
-  const [camError, setCamError] = useState(null)
-  const camStreamRef = useRef(null)
+  // ── Remote camera feed ──
+  const [cameraFeedEnabled, setCameraFeedEnabled] = useState(true)
+  const [cameraReloadKey, setCameraReloadKey] = useState(0)
 
-  const startCam = async () => {
-    try {
-      setCamError(null)
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      camStreamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-      setCamActive(true)
-      addLog('connection', 'Webcam connected')
-    } catch (err) {
-      setCamError(err.message || 'Camera access denied')
-      setCamActive(false)
-      addLog('connection', `Webcam failed: ${err.message}`)
-    }
+  const toggleCameraFeed = () => {
+    setCameraFeedEnabled(prev => {
+      const next = !prev
+      addLog('connection', `Microgreen camera feed ${next ? 'enabled' : 'paused'}`)
+      return next
+    })
   }
 
-  const stopCam = () => {
-    if (camStreamRef.current) {
-      camStreamRef.current.getTracks().forEach(t => t.stop())
-      camStreamRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-    setCamActive(false)
-    addLog('connection', 'Webcam disconnected')
+  const reloadCameraFeed = () => {
+    setCameraReloadKey(prev => prev + 1)
+    addLog('connection', 'Microgreen camera feed refreshed')
   }
-
-  useEffect(() => {
-    return () => {
-      if (camStreamRef.current) {
-        camStreamRef.current.getTracks().forEach(t => t.stop())
-      }
-    }
-  }, [])
   // ── Live clock ──
   const [now, setNow] = useState(new Date())
   useEffect(() => {
@@ -83,25 +59,6 @@ export default function ControlCenter() {
     return () => clearInterval(id)
   }, [])
 
-  // ── Toggle states ──
-  const [darkMode, setDarkMode] = useState(true)
-  const [doNotDisturb, setDoNotDisturb] = useState(false)
-
-  // ── Sliders ──
-  const [brightness, setBrightness] = useState(75)
-  const [volume, setVolume] = useState(50)
-
-  // ── Stopwatch ──
-  const [stopwatchRunning, setStopwatchRunning] = useState(false)
-  const [stopwatchMs, setStopwatchMs] = useState(0)
-  useEffect(() => {
-    if (!stopwatchRunning) return
-    const id = setInterval(() => setStopwatchMs(p => p + 10), 10)
-    return () => clearInterval(id)
-  }, [stopwatchRunning])
-  const swMinutes = String(Math.floor(stopwatchMs / 60000)).padStart(2, '0')
-  const swSeconds = String(Math.floor((stopwatchMs % 60000) / 1000)).padStart(2, '0')
-  const swCentis = String(Math.floor((stopwatchMs % 1000) / 10)).padStart(2, '0')
 
   // ── Grow Lights (2×8 grid) ──
   const SCHEDULE_ON_HOUR = 6   // lights turn on at 6 AM
@@ -301,52 +258,21 @@ export default function ControlCenter() {
     }
   }, [])
 
-  // ── Quick math ──
-  const [mathExpr, setMathExpr] = useState('')
-  const [mathResult, setMathResult] = useState(null)
-  const evalMath = () => {
-    try {
-      // safe subset: only digits, operators, parens, dots
-      if (/^[\d+\-*/().% ]+$/.test(mathExpr)) {
-        setMathResult(new Function(`return (${mathExpr})`)())
-      } else {
-        setMathResult('Invalid')
-      }
-    } catch { setMathResult('Error') }
-  }
-
-  // ── Toggle pill component ──
-  const Toggle = ({ on, onToggle, label, icon, color }) => (
-    <button
-      onClick={onToggle}
-      className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 w-full ${
-        on
-          ? `bg-gradient-to-r ${color} text-white shadow-lg scale-[1.02]`
-          : 'bg-white/10 text-white/60 hover:bg-white/15'
-      }`}
-    >
-      <span className="text-xl">{icon}</span>
-      <span className="text-sm font-semibold flex-1 text-left">{label}</span>
-      <div className={`w-10 h-6 rounded-full relative transition-colors duration-300 ${on ? 'bg-white/30' : 'bg-white/10'}`}>
-        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-300 ${on ? 'left-[18px]' : 'left-0.5'}`} />
-      </div>
-    </button>
-  )
-
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-zinc-900 flex overflow-hidden">
-      {/* Cookie Clicker nav button */}
-      <Link
-        to="/cookie-clicker"
-        className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white/80 hover:text-white px-6 py-4 rounded-full transition-all border border-white/10 hover:border-white/20 shadow-lg"
-        title="Cookie Clicker"
-      >
-        <span className="text-2xl">🍪</span>
-        <span className="text-lg font-semibold hidden sm:inline">Cookie Clicker</span>
-      </Link>
+    <div className="h-full bg-gradient-to-br from-slate-900 via-gray-900 to-zinc-900 flex flex-col overflow-hidden">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between px-8 py-4 border-b border-white/5">
+        <h1 className="text-xl font-bold text-white tracking-wide">🌱 Microgreen Control Center</h1>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-white/40 font-mono">{formatTime(now)}</span>
+          <div className="w-2 h-2 rounded-full bg-green-400 shadow-lg shadow-green-400/50 animate-pulse" />
+        </div>
+      </div>
 
+      {/* ── Main Content ── */}
+      <div className="flex-1 flex overflow-hidden">
       {/* ── Left Column — Grow Lights + Camera ── */}
-      <div ref={leftColRef} className="flex-1 flex flex-col p-6 pt-16" style={{ gap: 0 }}>
+      <div ref={leftColRef} className="flex-1 flex flex-col p-6" style={{ gap: 0 }}>
         {/* Grow Lights 2×8 */}
         <div className="bg-white/5 rounded-3xl p-6 border border-white/5 flex flex-col overflow-hidden" style={{ height: `${lightsPct}%` }}>
           <div className="flex items-center justify-between mb-1">
@@ -485,155 +411,61 @@ export default function ControlCenter() {
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-white/40 font-semibold uppercase tracking-widest">📷 Microgreen Status</p>
               <div className="flex items-center gap-2">
-                {camActive && (
+                {cameraFeedEnabled && (
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-lg shadow-red-500/50" />
                     <span className="text-[10px] text-red-400 font-bold uppercase">Live</span>
                   </div>
                 )}
                 <button
-                  onClick={camActive ? stopCam : startCam}
+                  onClick={reloadCameraFeed}
+                  className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={toggleCameraFeed}
                   className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg transition-all ${
-                    camActive
+                    cameraFeedEnabled
                       ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                       : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                   }`}
                 >
-                  {camActive ? 'Stop' : 'Start Cam'}
+                  {cameraFeedEnabled ? 'Pause Feed' : 'Resume Feed'}
                 </button>
               </div>
             </div>
             <div className="flex-1 bg-black/60 rounded-2xl border border-white/10 overflow-hidden relative flex items-center justify-center">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover ${camActive ? 'block' : 'hidden'}`}
-              />
-              {!camActive && (
+              {cameraFeedEnabled ? (
+                <iframe
+                  key={cameraReloadKey}
+                  src={CAMERA_FEED_URL}
+                  title="Microgreen camera feed"
+                  className="w-full h-full border-0"
+                  allow="camera; microphone; autoplay"
+                />
+              ) : (
                 <div className="flex flex-col items-center justify-center gap-2">
                   <span className="text-4xl opacity-30">📷</span>
-                  <span className="text-sm font-semibold text-white/30">
-                    {camError ? camError : 'Camera Off'}
-                  </span>
-                  <span className="text-xs text-white/15">Click “Start Cam” to connect</span>
+                  <span className="text-sm font-semibold text-white/30">Camera feed paused</span>
+                  <span className="text-xs text-white/15">Resume the local feed when you want to monitor the tray.</span>
                 </div>
               )}
+              <a
+                href={CAMERA_FEED_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="absolute bottom-3 right-3 rounded-lg bg-black/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/70 hover:bg-black/80 hover:text-white transition-all"
+              >
+                Open feed
+              </a>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Right Column — Control Widgets ── */}
-      <div className="w-[400px] h-screen bg-white/5 backdrop-blur-xl border-l border-white/10 p-5 flex flex-col gap-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white tracking-wide">Control Center</h1>
-          <div className="w-2 h-2 rounded-full bg-green-400 shadow-lg shadow-green-400/50 animate-pulse" />
-        </div>
-
-        {/* ── Display & Sound ── */}
-        <div className="bg-white/5 rounded-3xl p-4 flex flex-col gap-3 border border-white/5">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-white/50 font-medium">☀️ Brightness</span>
-              <span className="text-sm font-mono text-white/70">{brightness}%</span>
-            </div>
-            <input
-              type="range" min="0" max="100" value={brightness}
-              onChange={e => setBrightness(Number(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer accent-yellow-400"
-              style={{ background: `linear-gradient(to right, #facc15 ${brightness}%, rgba(255,255,255,0.1) ${brightness}%)` }}
-            />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-white/50 font-medium">🔊 Volume</span>
-              <span className="text-sm font-mono text-white/70">{volume}%</span>
-            </div>
-            <input
-              type="range" min="0" max="100" value={volume}
-              onChange={e => setVolume(Number(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer accent-blue-400"
-              style={{ background: `linear-gradient(to right, #60a5fa ${volume}%, rgba(255,255,255,0.1) ${volume}%)` }}
-            />
-          </div>
-        </div>
-
-        {/* ── Mode Toggles ── */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className={`p-3 rounded-2xl flex flex-col items-center gap-1.5 transition-all duration-300 border ${
-              darkMode
-                ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white border-transparent shadow-lg shadow-purple-500/30'
-                : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'
-            }`}
-          >
-            <span className="text-2xl">{darkMode ? '🌙' : '☀️'}</span>
-            <span className="text-xs font-semibold">{darkMode ? 'Dark Mode' : 'Light Mode'}</span>
-          </button>
-          <button
-            onClick={() => setDoNotDisturb(!doNotDisturb)}
-            className={`p-3 rounded-2xl flex flex-col items-center gap-1.5 transition-all duration-300 border ${
-              doNotDisturb
-                ? 'bg-gradient-to-br from-rose-500 to-pink-600 text-white border-transparent shadow-lg shadow-rose-500/30'
-                : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'
-            }`}
-          >
-            <span className="text-2xl">{doNotDisturb ? '🔕' : '🔔'}</span>
-            <span className="text-xs font-semibold">{doNotDisturb ? 'DND On' : 'DND Off'}</span>
-          </button>
-        </div>
-
-        {/* ── Stopwatch + Quick Calc side by side ── */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white/5 rounded-3xl p-4 border border-white/5">
-            <p className="text-xs text-white/40 font-semibold uppercase tracking-widest mb-2">⏱ Stopwatch</p>
-            <p className="text-xl font-mono text-white text-center tracking-wider mb-3">
-              {swMinutes}:{swSeconds}<span className="text-sm text-white/40">.{swCentis}</span>
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStopwatchRunning(!stopwatchRunning)}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  stopwatchRunning
-                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                }`}
-              >
-                {stopwatchRunning ? 'Stop' : 'Start'}
-              </button>
-              <button
-                onClick={() => { setStopwatchRunning(false); setStopwatchMs(0) }}
-                className="flex-1 py-2 rounded-xl text-xs font-bold bg-white/5 text-white/50 hover:bg-white/10 transition-all"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white/5 rounded-3xl p-4 border border-white/5 flex flex-col">
-            <p className="text-xs text-white/40 font-semibold uppercase tracking-widest mb-2">🧮 Quick Calc</p>
-            <input
-              value={mathExpr}
-              onChange={e => setMathExpr(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && evalMath()}
-              placeholder="e.g. 42 * 3.14"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs placeholder-white/20 outline-none focus:border-white/30 transition font-mono mb-2"
-            />
-            <button
-              onClick={evalMath}
-              className="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs font-bold rounded-xl hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-cyan-500/20"
-            >
-              Calculate
-            </button>
-            {mathResult !== null && (
-              <p className="mt-2 text-sm font-mono text-cyan-300 text-center">{String(mathResult)}</p>
-            )}
-          </div>
-        </div>
+      {/* ── Right Column — Devices + Log ── */}
+      <div className="w-[360px] bg-white/[0.03] backdrop-blur-xl border-l border-white/5 p-5 flex flex-col gap-4 overflow-hidden">
 
         {/* ── Arduino Device Hub ── */}
         <div className="bg-white/5 rounded-3xl p-4 border border-white/5 flex-1 flex flex-col min-h-0">
@@ -812,6 +644,7 @@ export default function ControlCenter() {
 
         {/* ── Footer ── */}
         <p className="text-center text-xs text-white/15">Control Center v1.0</p>
+      </div>
       </div>
     </div>
   )

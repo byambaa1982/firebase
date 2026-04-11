@@ -290,17 +290,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white flex relative">
-
-      {/* Back to Control Center button */}
-      <Link
-        to="/"
-        className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white/80 hover:text-white px-6 py-4 rounded-full transition-all border border-white/10 hover:border-white/20 shadow-lg"
-        title="Control Center"
-      >
-        <span className="text-2xl">🎛️</span>
-        <span className="text-lg font-semibold hidden sm:inline">← Control Center</span>
-      </Link>
+    <div className="h-full bg-[#0f0f1a] text-white flex relative overflow-auto">
 
       {/* Golden Cookie */}
       {goldenCookie && (

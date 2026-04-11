@@ -26,18 +26,12 @@ export default function ArduinoControl() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-400 via-cyan-500 to-blue-600 flex flex-col items-center justify-center p-4">
+    <div className="min-h-full bg-gradient-to-br from-teal-400 via-cyan-500 to-blue-600 flex flex-col items-center justify-center p-4">
       <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8 max-w-lg w-full">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
             Arduino Control
           </h1>
-          <Link
-            to="/"
-            className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full transition"
-          >
-            ← Back
-          </Link>
         </div>
 
         {/* Connection Status */}
