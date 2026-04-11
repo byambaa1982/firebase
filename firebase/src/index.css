@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --duo-green: #58CC02;
+  --duo-green-dark: #46a302;
+  --duo-green-light: #d7ffb8;
+  --duo-blue: #1cb0f6;
+  --duo-blue-dark: #1899d6;
+  --duo-red: #ff4b4b;
+  --duo-red-dark: #ea2b2b;
+  --duo-orange: #ff9600;
+  --duo-orange-dark: #e08600;
+  --duo-purple: #ce82ff;
+  --duo-yellow: #ffc800;
+  --duo-gray-bg: #f7f7f7;
+  --duo-border: #e5e5e5;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: 'Nunito', 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--duo-gray-bg);
+}
+
+/* Duolingo-style 3D push buttons */
+.btn-duo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  border-radius: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.1s;
+  text-decoration: none;
+  border-bottom: 4px solid;
+}
+.btn-duo:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+.btn-duo-green {
+  background: var(--duo-green);
+  color: white;
+  border-bottom-color: var(--duo-green-dark);
+}
+.btn-duo-green:hover { background: #4db802; }
+.btn-duo-blue {
+  background: var(--duo-blue);
+  color: white;
+  border-bottom-color: var(--duo-blue-dark);
+}
+.btn-duo-blue:hover { background: #14a0e0; }
+.btn-duo-red {
+  background: var(--duo-red);
+  color: white;
+  border-bottom-color: var(--duo-red-dark);
+}
+.btn-duo-red:hover { background: #e63e3e; }
+.btn-duo-orange {
+  background: var(--duo-orange);
+  color: white;
+  border-bottom-color: var(--duo-orange-dark);
+}
+.btn-duo-ghost {
+  background: white;
+  color: #4b4b4b;
+  border: 2px solid var(--duo-border);
+  border-bottom: 4px solid var(--duo-border);
+}
+.btn-duo-ghost:hover { background: #f7f7f7; }
