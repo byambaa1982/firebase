@@ -2,6 +2,8 @@
 **AI-Powered Flashcard Study Platform** | React + Vite + Firebase + OpenAI
 Last Updated: April 11, 2026
 
+Last Updated: April 18, 2026
+
 ---
 
 ## What's Built (Completed)
@@ -19,26 +21,31 @@ Last Updated: April 11, 2026
 | Deck search + category filtering | ✅ Done |
 | DeckCard, DeckForm components | ✅ Done |
 | HomePage, LoginPage, ProfilePage | ✅ Done |
-| AI flashcard generation (fixed) | ✅ Done |
+| AI flashcard generation (Gemini) | ✅ Done |
+| StudyPage with flip animations (framer-motion) | ✅ Done |
+| Spaced repetition (SM-2) wired to Firestore | ✅ Done |
+| CardsPage with full CRUD | ✅ Done |
+| Drag-and-drop card reordering (@dnd-kit) | ✅ Done |
+| Analytics dashboard (streaks, charts, mastery) | ✅ Done |
+| Firestore security rules (all collections secured) | ✅ Done |
+| **Adaptive Quiz** (AI-powered, topic-based, NWEA-style difficulty scaling) | ✅ Done |
 
 ---
 
 ## In Progress
 
-- [ ] Study session UI (FlashcardFlip, spaced repetition logic)
-- [ ] Card management (CardsPage, CardForm, CardPreview)
-- [ ] Analytics dashboard (study streaks, progress tracking)
-- [ ] AI tutor — explain wrong answers, give hints during study
+- [ ] AI tutor — explain wrong answers, give hints during study sessions
+- [ ] PDF/document upload → auto-generate flashcards
 
 ---
 
 ## Next Steps
 
-### Phase 1 — Complete Core Study Features
-- [ ] Finish `StudyPage.jsx` with flip animations (framer-motion)
-- [ ] Wire up `spacedRepetition.js` to Firestore user progress
-- [ ] Complete `CardsPage.jsx` and card CRUD operations
-- [ ] Add drag-and-drop card reordering (`@dnd-kit/core`)
+### Phase 2 — AI Tutor & Enhanced Generation
+- [ ] Set up Firebase Cloud Functions as secure OpenAI/Gemini proxy
+- [ ] AI explains wrong answers inline during study sessions
+- [ ] PDF/document upload → auto-generate flashcards
+- [ ] Progressive hints system during study mode
 
 ### Phase 2 — AI Tutor & Enhanced Generation
 - [ ] Set up Firebase Cloud Functions (or Railway API) as secure OpenAI proxy
