@@ -88,8 +88,11 @@ export const subscribeToDeckCards = (deckId, callback) => {
       querySnapshot.forEach((doc) => {
         cards.push({ id: doc.id, ...doc.data() });
       });
-      // Sort client-side: oldest first
+      // Sort by position if set, otherwise fall back to createdAt
       cards.sort((a, b) => {
+        if (a.position != null && b.position != null) return a.position - b.position;
+        if (a.position != null) return -1;
+        if (b.position != null) return 1;
         const aTime = a.createdAt?.toMillis?.() || 0;
         const bTime = b.createdAt?.toMillis?.() || 0;
         return aTime - bTime;
@@ -224,6 +227,21 @@ export const bulkImportCards = async (deckId, cardsArray) => {
     return true;
   } catch (error) {
     console.error('Error bulk importing cards:', error);
+    throw error;
+  }
+};
+
+// Reorder cards by writing a position field to each card in batch
+export const reorderCards = async (orderedCardIds) => {
+  try {
+    const batch = writeBatch(db);
+    orderedCardIds.forEach((cardId, index) => {
+      const cardRef = doc(db, 'cards', cardId);
+      batch.update(cardRef, { position: index });
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error('Error reordering cards:', error);
     throw error;
   }
 };

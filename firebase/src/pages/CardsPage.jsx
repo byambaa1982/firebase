@@ -7,12 +7,70 @@ import {
   deleteCard,
   duplicateCard,
   bulkDeleteCards,
-  bulkImportCards
+  bulkImportCards,
+  reorderCards
 } from '../services/cardService';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  rectSortingStrategy,
+  arrayMove
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import CardPreview from '../components/CardPreview';
 import CardForm from '../components/CardForm';
+
+function SortableCard({ card, index, selectedCards, onEdit, onDelete, onDuplicate, onToggleSelect }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 'auto'
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 z-10 p-1 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 rounded"
+        title="Drag to reorder"
+        onClick={e => e.stopPropagation()}
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM7 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+        </svg>
+      </div>
+      {selectedCards.size > 0 && (
+        <div className="absolute top-2 left-2 z-10">
+          <input
+            type="checkbox"
+            checked={selectedCards.has(card.id)}
+            onChange={() => onToggleSelect(card.id)}
+            className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+          />
+        </div>
+      )}
+      <CardPreview
+        card={card}
+        index={index}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onDuplicate={onDuplicate}
+      />
+    </div>
+  );
+}
 
 export default function CardsPage() {
   const { deckId } = useParams();
@@ -30,6 +88,39 @@ export default function CardsPage() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const fileInputRef = useRef(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const currentFiltered = cards.filter((card) => {
+      const matchesSearch =
+        card.front.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        card.back.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesDifficulty =
+        filterDifficulty === 'All' || card.difficulty === filterDifficulty;
+      return matchesSearch && matchesDifficulty;
+    });
+
+    const oldIndex = currentFiltered.findIndex(c => c.id === active.id);
+    const newIndex = currentFiltered.findIndex(c => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(currentFiltered, oldIndex, newIndex);
+    const reorderedIds = reordered.map(c => c.id);
+    setCards(prev => {
+      const rest = prev.filter(c => !reorderedIds.includes(c.id));
+      return [...reordered, ...rest];
+    });
+
+    try {
+      await reorderCards(reorderedIds);
+    } catch {
+      toast.error('Failed to save order');
+    }
+  };
 
   // Load deck info
   useEffect(() => {
@@ -384,30 +475,24 @@ export default function CardsPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCards.map((card, index) => (
-              <div key={card.id} className="relative">
-                {/* Selection checkbox */}
-                {selectedCards.size > 0 && (
-                  <div className="absolute top-2 left-2 z-10">
-                    <input
-                      type="checkbox"
-                      checked={selectedCards.has(card.id)}
-                      onChange={() => toggleSelectCard(card.id)}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                )}
-                <CardPreview
-                  card={card}
-                  index={index}
-                  onEdit={handleEditCard}
-                  onDelete={handleDeleteCard}
-                  onDuplicate={handleDuplicateCard}
-                />
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={filteredCards.map(c => c.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredCards.map((card, index) => (
+                  <SortableCard
+                    key={card.id}
+                    card={card}
+                    index={index}
+                    selectedCards={selectedCards}
+                    onEdit={handleEditCard}
+                    onDelete={handleDeleteCard}
+                    onDuplicate={handleDuplicateCard}
+                    onToggleSelect={toggleSelectCard}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 

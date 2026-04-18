@@ -57,6 +57,7 @@ export default function Navbar() {
                 <Link to="/dashboard" className={linkCls('/dashboard')}>Dashboard</Link>
                 <Link to="/decks" className={linkCls('/decks')}>Decks</Link>
                 <Link to="/ai-generate" className={linkCls('/ai-generate')}>AI Generate</Link>
+                <Link to="/adaptive-quiz" className={linkCls('/adaptive-quiz')}>Adaptive Quiz</Link>
                 <Link to="/profile" className={linkCls('/profile')}>Profile</Link>
               </>
             )}
@@ -94,6 +95,7 @@ export default function Navbar() {
                 <Link to="/dashboard" className={linkCls('/dashboard')} onClick={() => setOpen(false)}>Dashboard</Link>
                 <Link to="/decks" className={linkCls('/decks')} onClick={() => setOpen(false)}>Decks</Link>
                 <Link to="/ai-generate" className={linkCls('/ai-generate')} onClick={() => setOpen(false)}>AI Generate</Link>
+                <Link to="/adaptive-quiz" className={linkCls('/adaptive-quiz')} onClick={() => setOpen(false)}>Adaptive Quiz</Link>
                 <Link to="/profile" className={linkCls('/profile')} onClick={() => setOpen(false)}>Profile</Link>
               </>
             )}

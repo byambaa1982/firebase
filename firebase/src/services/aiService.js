@@ -178,3 +178,65 @@ export async function explainCard(front, back, userQuestion = '') {
 export function isAIConfigured() {
   return !!import.meta.env.VITE_GEMINI_API_KEY;
 }
+
+// Generate a single adaptive quiz question on a topic at a given difficulty level (1-10)
+export async function generateAdaptiveQuestion(topic, subtopic, difficultyLevel, previousQuestions = []) {
+  const levelDesc =
+    difficultyLevel <= 2 ? 'very basic, introductory' :
+    difficultyLevel <= 4 ? 'easy, foundational' :
+    difficultyLevel <= 6 ? 'intermediate' :
+    difficultyLevel <= 8 ? 'advanced' :
+    'expert-level, nuanced';
+
+  const avoidList = previousQuestions.length > 0
+    ? `Do NOT repeat these questions: ${previousQuestions.slice(-5).join(' | ')}`
+    : '';
+
+  const systemPrompt = `You are an adaptive quiz generator. Return ONLY a JSON object, no other text.
+The object must have exactly these fields:
+- "question": A clear question string
+- "options": Array of exactly 4 short strings (each 1-6 words, no punctuation). One is correct, three are plausible wrong answers. Shuffle them randomly.
+- "answer": The correct answer — THIS MUST BE COPIED EXACTLY (character-for-character) from one of the strings in "options"
+- "explanation": Brief explanation of why the answer is correct (1-2 sentences)
+- "difficulty": The difficulty level number you used (${difficultyLevel})
+
+CRITICAL: "answer" must be byte-for-byte identical to one element in "options". Do not paraphrase or add punctuation.`;
+
+  const userPrompt = `Topic: "${topic}"${subtopic ? `, specifically about: "${subtopic}"` : ''}.
+Difficulty: ${difficultyLevel}/10 (${levelDesc}).
+${avoidList}
+Generate one multiple-choice question.`;
+
+  const raw = await callGemini(systemPrompt, userPrompt, 0.8);
+
+  // Parse the returned JSON object
+  let cleaned = raw.trim().replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  let parsed = null;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {}
+  if (!parsed) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { parsed = JSON.parse(match[0]); } catch {}
+    }
+  }
+  if (!parsed || !parsed.question || !parsed.answer || !Array.isArray(parsed.options)) {
+    throw new Error('AI returned an unexpected format for adaptive question.');
+  }
+  // Guarantee answer exactly matches one option (fixes mismatch bugs)
+  const exactMatch = parsed.options.find(o => o === parsed.answer);
+  if (!exactMatch) {
+    // Find closest option by case-insensitive trim match
+    const loose = parsed.options.find(
+      o => o.trim().toLowerCase() === parsed.answer.trim().toLowerCase()
+    );
+    if (loose) {
+      parsed.answer = loose; // snap answer to the exact option string
+    } else {
+      // Replace first option with the answer so there is always a correct choice
+      parsed.options[0] = parsed.answer;
+    }
+  }
+  return parsed;
+}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function FlashcardFlip({ card, flipped, onFlip }) {
   return (
@@ -7,45 +8,50 @@ export default function FlashcardFlip({ card, flipped, onFlip }) {
       style={{ perspective: '1200px' }}
       onClick={onFlip}
     >
-      <div
-        className="relative w-full transition-transform duration-500"
-        style={{
-          transformStyle: 'preserve-3d',
-          transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-          minHeight: '320px'
-        }}
-      >
-        {/* Front */}
-        <div
-          className="absolute inset-0 bg-white rounded-2xl border-2 border-b-4 border-[#e5e5e5] p-8 flex flex-col items-center justify-center"
-          style={{ backfaceVisibility: 'hidden' }}
-        >
-          <span className="text-xs font-extrabold text-[#1cb0f6] uppercase tracking-widest mb-4">Question</span>
-          <p className="text-2xl md:text-3xl font-black text-gray-800 text-center leading-relaxed">
-            {card.front}
-          </p>
-          {card.hints && card.hints.length > 0 && (
-            <HintButton hints={card.hints} />
+      <div className="relative w-full" style={{ minHeight: '320px' }}>
+        <AnimatePresence initial={false} mode="wait">
+          {!flipped ? (
+            <motion.div
+              key="front"
+              initial={{ rotateY: -180, opacity: 0 }}
+              animate={{ rotateY: 0, opacity: 1 }}
+              exit={{ rotateY: 180, opacity: 0 }}
+              transition={{ duration: 0.35, ease: 'easeInOut' }}
+              style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden', position: 'absolute', inset: 0 }}
+              className="bg-white rounded-2xl border-2 border-b-4 border-[#e5e5e5] p-8 flex flex-col items-center justify-center"
+            >
+              <span className="text-xs font-extrabold text-[#1cb0f6] uppercase tracking-widest mb-4">Question</span>
+              <p className="text-2xl md:text-3xl font-black text-gray-800 text-center leading-relaxed">
+                {card.front}
+              </p>
+              {card.hints && card.hints.length > 0 && (
+                <HintButton hints={card.hints} />
+              )}
+              <span className="absolute bottom-5 text-xs font-bold text-gray-400">Tap to flip</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="back"
+              initial={{ rotateY: 180, opacity: 0 }}
+              animate={{ rotateY: 0, opacity: 1 }}
+              exit={{ rotateY: -180, opacity: 0 }}
+              transition={{ duration: 0.35, ease: 'easeInOut' }}
+              style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden', position: 'absolute', inset: 0 }}
+              className="bg-[#d7ffb8] rounded-2xl border-2 border-b-4 border-[#58CC02] p-8 flex flex-col items-center justify-center"
+            >
+              <span className="text-xs font-extrabold text-[#58CC02] uppercase tracking-widest mb-4">Answer</span>
+              <p className="text-2xl md:text-3xl font-black text-gray-800 text-center leading-relaxed">
+                {card.back}
+              </p>
+              {card.explanation && (
+                <p className="mt-4 text-sm text-gray-600 text-center font-semibold max-w-md">
+                  {card.explanation}
+                </p>
+              )}
+              <span className="absolute bottom-5 text-xs font-bold text-[#46a302]">Tap to flip back</span>
+            </motion.div>
           )}
-          <span className="absolute bottom-5 text-xs font-bold text-gray-400">Tap to flip</span>
-        </div>
-
-        {/* Back */}
-        <div
-          className="absolute inset-0 bg-[#d7ffb8] rounded-2xl border-2 border-b-4 border-[#58CC02] p-8 flex flex-col items-center justify-center"
-          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-        >
-          <span className="text-xs font-extrabold text-[#58CC02] uppercase tracking-widest mb-4">Answer</span>
-          <p className="text-2xl md:text-3xl font-black text-gray-800 text-center leading-relaxed">
-            {card.back}
-          </p>
-          {card.explanation && (
-            <p className="mt-4 text-sm text-gray-600 text-center font-semibold max-w-md">
-              {card.explanation}
-            </p>
-          )}
-          <span className="absolute bottom-5 text-xs font-bold text-[#46a302]">Tap to flip back</span>
-        </div>
+        </AnimatePresence>
       </div>
     </div>
   );

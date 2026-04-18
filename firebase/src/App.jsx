@@ -9,6 +9,7 @@ import CardsPage from './pages/CardsPage';
 import StudyPage from './pages/StudyPage';
 import AIGeneratePage from './pages/AIGeneratePage';
 import DashboardPage from './pages/DashboardPage';
+import AdaptiveQuizPage from './pages/AdaptiveQuizPage';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
 
@@ -65,6 +66,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/adaptive-quiz" 
+            element={
+              <ProtectedRoute>
+                <AdaptiveQuizPage />
               </ProtectedRoute>
             } 
           />
