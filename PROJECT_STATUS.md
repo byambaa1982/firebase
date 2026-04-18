@@ -7,10 +7,36 @@
 ## Completed Features
 
 ### Science / Biology Section
-- **Interactive anatomy map** (`/science`) — clickable hotspot overlay on a full torso illustration; 9 organs mapped with hover highlight and label
-- **All 9 organ pages** fully implemented with name, image, and written description:
-  - Brain, Heart, Lungs, Liver, Kidneys, Stomach, Pancreas, Intestines, Bladder
-- Invalid organ slug shows a "Organ not found" fallback with a back button
+
+#### `/science` — Human Anatomy Hub (`SciencePage.jsx`)
+- Dark navy background (`#0d1b2a`), standard site header (brand + nav + `NavUser`) and footer
+- `<h1>` title: **"Human Anatomy"** with subtitle: *"Click any organ label to learn more."*
+- **Central image:** `main.png` — a full human torso illustration, max-width 700px, rounded corners, drop-shadow
+- **9 interactive hotspots** overlaid on `main.png` using absolute `%`-based positioning:
+
+  | Organ | Position (top / left) | Size |
+  |---|---|---|
+  | Brain | 5% / 1% | 21% × 14% |
+  | Heart | 10% / 70% | 28% × 14% |
+  | Lungs | 32% / 1% | 21% × 13% |
+  | Liver | 32% / 69% | 28% × 13% |
+  | Kidneys | 50% / 1% | 21% × 13% |
+  | Stomach | 49% / 69% | 28% × 14% |
+  | Pancreas | 66% / 1% | 22% × 12% |
+  | Intestines | 65% / 65% | 33% × 14% |
+  | Bladder | 80% / 1% | 21% × 13% |
+
+- **Hotspot behavior:** each box has a light-blue (`#4fc3f7`) label, semi-transparent blue border/background at rest; on hover, border and background intensify (full `#4fc3f7`); clicking navigates to `/science/<slug>`
+
+#### `/science/:organ` — Individual Organ Pages (`OrganPage.jsx`)
+- Same dark shell (header, footer, navy background)
+- **`← Back` button** (top-left, blue outline) returns to `/science`
+- **Detail card** (max-width 750px, dark card `#1a2c3d`, rounded, shadow, flex row):
+  - **Organ image** (220px wide, rounded, shadow) — dedicated `.png` per organ:
+    - `Brain.png`, `Heart.png`, `lungs.png`, `Liver.png`, `Kidneys.png`, `stomach.png`, `pancreas.png`, `intestines.png`, `bladder.png`
+  - **Organ name** (`<h1>`) in `#4fc3f7` blue
+  - **Description field** — currently shows *"Description coming soon..."* in italic grey for all 9 organs (no written content yet)
+- **404 fallback:** invalid slug (e.g. `/science/xyz`) shows "Organ not found." with a `← Back to Science` button
 
 ### Authentication
 - Google Sign-In (popup) via Firebase Auth — fully working
