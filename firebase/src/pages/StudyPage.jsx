@@ -5,6 +5,7 @@ import { getDeckCards } from '../services/cardService';
 import { getDeck } from '../services/deckService';
 import { createStudySession, endStudySession, updateCardProgress } from '../services/studyService';
 import { calculateNextReview, getDueCards } from '../utils/spacedRepetition';
+import { explainCard, isAIConfigured } from '../services/aiService';
 import FlashcardFlip from '../components/FlashcardFlip';
 import toast from 'react-hot-toast';
 
@@ -50,6 +51,10 @@ export default function StudyPage() {
 
   // Results tab
   const [resultsTab, setResultsTab] = useState('summary'); // 'summary' | 'cards'
+
+  // AI Tutor state
+  const [aiExplanation, setAiExplanation] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Session stats
   const [results, setResults] = useState({
@@ -187,6 +192,7 @@ export default function StudyPage() {
     if (currentIndex < studyCards.length - 1) {
       setCurrentIndex(i => i + 1);
       setFlipped(false);
+      setAiExplanation('');
     } else {
       finishSession();
     }
@@ -595,6 +601,47 @@ export default function StudyPage() {
                   <span className="text-2xl">😄</span>
                   <span className="text-xs">Knew It!</span>
                 </button>
+              </div>
+            )}
+
+            {/* AI Tutor — explain this card */}
+            {flipped && isAIConfigured() && (
+              <div className="mt-4 w-full max-w-2xl mx-auto">
+                {!aiExplanation && (
+                  <button
+                    onClick={async () => {
+                      setAiLoading(true);
+                      try {
+                        const explanation = await explainCard(currentCard.front, currentCard.back);
+                        setAiExplanation(explanation);
+                      } catch {
+                        toast.error('AI tutor unavailable right now');
+                      } finally {
+                        setAiLoading(false);
+                      }
+                    }}
+                    disabled={aiLoading}
+                    className="w-full py-2.5 px-4 bg-white border-2 border-b-4 border-[#ce82ff] text-[#9d4edd] font-extrabold text-sm rounded-2xl hover:bg-[#f9f0ff] transition flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {aiLoading ? (
+                      <><div className="w-4 h-4 border-2 border-[#ce82ff] border-t-transparent rounded-full animate-spin" /> Asking AI...</>
+                    ) : (
+                      <>✨ Explain this to me</>
+                    )}
+                  </button>
+                )}
+                {aiExplanation && (
+                  <div className="bg-[#f9f0ff] border-2 border-[#ce82ff] rounded-2xl p-4">
+                    <p className="text-xs font-extrabold text-[#9d4edd] uppercase tracking-wider mb-2">✨ AI Tutor</p>
+                    <p className="text-sm text-gray-700 font-medium leading-relaxed">{aiExplanation}</p>
+                    <button
+                      onClick={() => setAiExplanation('')}
+                      className="mt-2 text-xs text-[#9d4edd] font-bold hover:underline"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { generateFromText, generateFromTopic, isAIConfigured } from '../services/aiService';
@@ -6,8 +6,15 @@ import { createDeck } from '../services/deckService';
 import { createCard } from '../services/cardService';
 import Navbar from '../components/Navbar';
 import toast from 'react-hot-toast';
+import * as pdfjsLib from 'pdfjs-dist';
 
-const TABS = { TEXT: 'text', TOPIC: 'topic' };
+// Use the bundled worker to avoid CORS issues
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
+
+const TABS = { TEXT: 'text', TOPIC: 'topic', PDF: 'pdf' };
 
 export default function AIGeneratePage() {
   const { currentUser } = useAuth();
@@ -32,6 +39,12 @@ export default function AIGeneratePage() {
   const [difficulty, setDifficulty] = useState('mixed');
   const [focus, setFocus] = useState('');
 
+  // PDF mode
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfCount, setPdfCount] = useState(10);
+  const [pdfExtracting, setPdfExtracting] = useState(false);
+  const pdfInputRef = useRef(null);
+
   // Save to deck
   const [deckName, setDeckName] = useState('');
   const [deckCategory, setDeckCategory] = useState('General');
@@ -51,6 +64,10 @@ export default function AIGeneratePage() {
       toast.error('Enter a topic');
       return;
     }
+    if (activeTab === TABS.PDF && !pdfFile) {
+      toast.error('Upload a PDF first');
+      return;
+    }
 
     setGenerating(true);
     setGeneratedCards([]);
@@ -61,6 +78,23 @@ export default function AIGeneratePage() {
       let cards;
       if (activeTab === TABS.TEXT) {
         cards = await generateFromText(textInput, textCount);
+      } else if (activeTab === TABS.PDF) {
+        setPdfExtracting(true);
+        const arrayBuffer = await pdfFile.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          fullText += content.items.map(item => item.str).join(' ') + '\n';
+        }
+        setPdfExtracting(false);
+        if (!fullText.trim()) {
+          toast.error('Could not extract text from this PDF');
+          setGenerating(false);
+          return;
+        }
+        cards = await generateFromText(fullText, pdfCount);
       } else {
         cards = await generateFromTopic(topic, topicCount, difficulty, focus);
       }
@@ -208,6 +242,12 @@ export default function AIGeneratePage() {
                 >
                   💡 From Topic
                 </button>
+                <button
+                  onClick={() => setActiveTab(TABS.PDF)}
+                  className={`flex-1 py-4 text-sm font-extrabold transition ${activeTab === TABS.PDF ? 'text-[#1cb0f6] border-b-2 border-[#1cb0f6] bg-[#ddf4ff]' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  📄 From PDF
+                </button>
               </div>
 
               <div className="p-6 space-y-4">
@@ -237,6 +277,54 @@ export default function AIGeneratePage() {
                       </select>
                     </div>
                   </>
+                ) : activeTab === TABS.PDF ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Upload PDF</label>
+                      <div
+                        onClick={() => pdfInputRef.current?.click()}
+                        className="w-full border-2 border-dashed border-[#1cb0f6] rounded-2xl p-8 text-center cursor-pointer hover:bg-[#f0faff] transition"
+                      >
+                        {pdfFile ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-3xl">📄</span>
+                            <p className="text-sm font-bold text-gray-700">{pdfFile.name}</p>
+                            <p className="text-xs text-gray-400">{(pdfFile.size / 1024).toFixed(0)} KB — click to change</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-4xl">📤</span>
+                            <p className="text-sm font-bold text-gray-600">Click to upload a PDF</p>
+                            <p className="text-xs text-gray-400">Notes, textbooks, articles...</p>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={pdfInputRef}
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) setPdfFile(file);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Number of cards</label>
+                      <select
+                        value={pdfCount}
+                        onChange={(e) => setPdfCount(Number(e.target.value))}
+                        className="w-full px-4 py-2.5 border-2 border-[#e5e5e5] rounded-2xl text-sm bg-white"
+                        disabled={generating}
+                      >
+                        {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n} cards</option>)}
+                      </select>
+                    </div>
+                    {pdfExtracting && (
+                      <p className="text-xs text-[#1cb0f6] font-bold animate-pulse">Extracting text from PDF...</p>
+                    )}
+                  </>
                 ) : (
                   <>
                     <div>
@@ -254,7 +342,7 @@ export default function AIGeneratePage() {
                       <input
                         value={focus}
                         onChange={(e) => setFocus(e.target.value)}
-                        className="w-full px-4 py-2.5 border-2 border-[#e5e5e5] rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#1cb0f6] focus:border-[#1cb0f6]"
+                        className="w-full px-2.5 py-2.5 border-2 border-[#e5e5e5] rounded-2xl text-sm outline-none focus:ring-2 focus:ring-[#1cb0f6] focus:border-[#1cb0f6]"
                         placeholder="e.g. light reactions, causes, for-loops..."
                         disabled={generating}
                       />

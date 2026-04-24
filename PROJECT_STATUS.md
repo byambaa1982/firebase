@@ -1,7 +1,5 @@
 # Project Status — CardSparks
 **AI-Powered Flashcard Study Platform** | React + Vite + Firebase + OpenAI
-Last Updated: April 11, 2026
-
 Last Updated: April 18, 2026
 
 ---
@@ -42,14 +40,7 @@ Last Updated: April 18, 2026
 ## Next Steps
 
 ### Phase 2 — AI Tutor & Enhanced Generation
-- [ ] Set up Firebase Cloud Functions as secure OpenAI/Gemini proxy
 - [ ] AI explains wrong answers inline during study sessions
-- [ ] PDF/document upload → auto-generate flashcards
-- [ ] Progressive hints system during study mode
-
-### Phase 2 — AI Tutor & Enhanced Generation
-- [ ] Set up Firebase Cloud Functions (or Railway API) as secure OpenAI proxy
-- [ ] AI explains wrong answers during study sessions
 - [ ] PDF/document upload → auto-generate flashcards
 - [ ] Progressive hints system during study mode
 
