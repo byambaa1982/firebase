@@ -1,5 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+function FitText({ children, className }) {
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const text = textRef.current;
+    if (!container || !text) return;
+
+    // Reset to max size first
+    text.style.fontSize = '';
+
+    const maxFontSize = 30; // px — matches text-3xl
+    const minFontSize = 13; // px — smallest readable
+    let size = maxFontSize;
+
+    while (size > minFontSize) {
+      text.style.fontSize = `${size}px`;
+      if (text.scrollHeight <= container.clientHeight && text.scrollWidth <= container.clientWidth) break;
+      size -= 1;
+    }
+  }, [children]);
+
+  return (
+    <div ref={containerRef} className="flex-1 w-full flex items-center justify-center overflow-hidden">
+      <p
+        ref={textRef}
+        className={className}
+        style={{ lineHeight: 1.4 }}
+      >
+        {children}
+      </p>
+    </div>
+  );
+}
 
 export default function FlashcardFlip({ card, flipped, onFlip }) {
   return (
@@ -20,10 +56,10 @@ export default function FlashcardFlip({ card, flipped, onFlip }) {
               style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden', position: 'absolute', inset: 0 }}
               className="bg-white rounded-2xl border-2 border-b-4 border-[#e5e5e5] p-8 flex flex-col items-center justify-center"
             >
-              <span className="text-xs font-extrabold text-[#1cb0f6] uppercase tracking-widest mb-4">Question</span>
-              <p className="text-2xl md:text-3xl font-black text-gray-800 text-center leading-relaxed">
+              <span className="text-xs font-extrabold text-[#1cb0f6] uppercase tracking-widest mb-4 shrink-0">Question</span>
+              <FitText className="font-black text-gray-800 text-center w-full">
                 {card.front}
-              </p>
+              </FitText>
               {card.hints && card.hints.length > 0 && (
                 <HintButton hints={card.hints} />
               )}
@@ -39,12 +75,12 @@ export default function FlashcardFlip({ card, flipped, onFlip }) {
               style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden', position: 'absolute', inset: 0 }}
               className="bg-[#d7ffb8] rounded-2xl border-2 border-b-4 border-[#58CC02] p-8 flex flex-col items-center justify-center"
             >
-              <span className="text-xs font-extrabold text-[#58CC02] uppercase tracking-widest mb-4">Answer</span>
-              <p className="text-2xl md:text-3xl font-black text-gray-800 text-center leading-relaxed">
+              <span className="text-xs font-extrabold text-[#58CC02] uppercase tracking-widest mb-4 shrink-0">Answer</span>
+              <FitText className="font-black text-gray-800 text-center w-full">
                 {card.back}
-              </p>
+              </FitText>
               {card.explanation && (
-                <p className="mt-4 text-sm text-gray-600 text-center font-semibold max-w-md">
+                <p className="mt-4 text-sm text-gray-600 text-center font-semibold max-w-md shrink-0">
                   {card.explanation}
                 </p>
               )}

@@ -9,6 +9,40 @@ import { explainCard, isAIConfigured } from '../services/aiService';
 import FlashcardFlip from '../components/FlashcardFlip';
 import toast from 'react-hot-toast';
 
+// mood: 'idle' | 'thinking' | 'correct' | 'wrong' | 'celebrate'
+function StudyMascot({ mood = 'idle' }) {
+  const faces = {
+    idle:      { eyes: '◕ ◕', mouth: '⌣', color: '#1cb0f6', bg: '#ddf4ff', bounce: true },
+    thinking:  { eyes: '◔ ◔', mouth: '…', color: '#ff9600', bg: '#fff3d6', bounce: false },
+    correct:   { eyes: '◕ ◕', mouth: '‿', color: '#58CC02', bg: '#d7ffb8', bounce: true },
+    wrong:     { eyes: '╥ ╥', mouth: '︿', color: '#ff4b4b', bg: '#ffdfe0', bounce: false },
+    celebrate: { eyes: '★ ★', mouth: '‿', color: '#ce82ff', bg: '#f9f0ff', bounce: true },
+  };
+  const f = faces[mood] || faces.idle;
+  return (
+    <div style={{
+      display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+      animation: f.bounce ? 'mascotBounce 0.6s ease-in-out infinite alternate' : 'none',
+    }}>
+      <style>{`
+        @keyframes mascotBounce { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+        @keyframes mascotPop { 0%{transform:scale(0.7)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
+        .mascot-pop { animation: mascotPop 0.35s ease-out; }
+      `}</style>
+      <div className="mascot-pop" key={mood} style={{
+        width: 56, height: 56, borderRadius: '50%',
+        background: f.bg, border: `3px solid ${f.color}`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, fontWeight: 900, color: f.color, lineHeight: 1.3, userSelect: 'none',
+        boxShadow: `0 4px 0 ${f.color}`,
+      }}>
+        <span style={{ fontSize: 13 }}>{f.eyes}</span>
+        <span style={{ fontSize: 16 }}>{f.mouth}</span>
+      </div>
+    </div>
+  );
+}
+
 const STUDY_MODES = {
   ALL: 'all',
   REVIEW: 'review',
@@ -39,6 +73,7 @@ export default function StudyPage() {
   const [flipped, setFlipped] = useState(false);
   const [loading, setLoading] = useState(true);
   const [studyMode, setStudyMode] = useState(STUDY_MODES.ALL);
+  const [mascotMood, setMascotMood] = useState('idle');
   const [sessionId, setSessionId] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [showResults, setShowResults] = useState(false);
@@ -178,6 +213,11 @@ export default function StudyPage() {
     const card = studyCards[currentIndex];
     if (!card) return;
 
+    // Update mascot mood then reset to idle after a beat
+    if (quality >= 4) setMascotMood('correct');
+    else if (quality >= 2) setMascotMood('thinking');
+    else setMascotMood('wrong');
+
     const newSR = calculateNextReview(card, quality);
     updateCardProgress(card.id, newSR);
 
@@ -190,10 +230,12 @@ export default function StudyPage() {
     });
 
     if (currentIndex < studyCards.length - 1) {
+      setTimeout(() => setMascotMood('idle'), 900);
       setCurrentIndex(i => i + 1);
       setFlipped(false);
       setAiExplanation('');
     } else {
+      setMascotMood('celebrate');
       finishSession();
     }
   }, [currentIndex, studyCards]);
@@ -206,6 +248,8 @@ export default function StudyPage() {
     const card = studyCards[currentIndex];
     const isCorrect = answer === card.back;
     const quality = isCorrect ? 5 : 0;
+
+    setMascotMood(isCorrect ? 'correct' : 'wrong');
 
     const newSR = calculateNextReview(card, quality);
     updateCardProgress(card.id, newSR);
@@ -220,8 +264,10 @@ export default function StudyPage() {
 
   const advanceAfterQuiz = () => {
     if (currentIndex < studyCards.length - 1) {
+      setMascotMood('idle');
       setCurrentIndex(i => i + 1);
     } else {
+      setMascotMood('celebrate');
       finishSession();
     }
   };
@@ -307,8 +353,8 @@ export default function StudyPage() {
           {/* Header */}
           <div className="bg-white rounded-2xl border-2 border-b-4 border-[#e5e5e5] overflow-hidden mb-6">
             <div className="bg-[#58CC02] p-8 text-center text-white">
-              <div className="text-6xl mb-3">
-                {accuracy >= 80 ? '🎉' : accuracy >= 50 ? '👍' : '💪'}
+              <div className="flex justify-center mb-3">
+                <StudyMascot mood={accuracy >= 80 ? 'celebrate' : accuracy >= 50 ? 'correct' : 'thinking'} />
               </div>
               <h2 className="text-3xl font-black mb-1">Session Complete!</h2>
               <p className="text-[#d7ffb8] font-bold">{deck?.name} · {elapsedDisplay}</p>
@@ -552,6 +598,7 @@ export default function StudyPage() {
             {/* Next button after answering */}
             {quizAnswered && (
               <div className="mt-6 text-center">
+                <div className="mb-3"><StudyMascot mood={mascotMood} /></div>
                 <button
                   onClick={advanceAfterQuiz}
                   className="btn-duo btn-duo-green text-base py-3 px-10"
@@ -572,10 +619,11 @@ export default function StudyPage() {
         ) : (
           /* --- FLASHCARD MODE --- */
           <>
+            <div className="mb-3"><StudyMascot mood={mascotMood} /></div>
             <FlashcardFlip
               card={currentCard}
               flipped={flipped}
-              onFlip={() => setFlipped(f => !f)}
+              onFlip={() => { setFlipped(f => !f); setMascotMood(f => f ? 'idle' : 'thinking'); }}
             />
 
             {flipped && (

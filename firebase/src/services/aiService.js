@@ -8,19 +8,23 @@ function getGeminiURL() {
   return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getApiKey()}`;
 }
 
-async function callGemini(systemPrompt, userPrompt, temperature = 0.7) {
+async function callGemini(systemPrompt, userPrompt, temperature = 0.7, maxTokens = 8192, disableThinking = false) {
   let res;
   try {
+    const generationConfig = {
+      temperature,
+      maxOutputTokens: maxTokens,
+    };
+    if (disableThinking) {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    }
     res = await fetch(getGeminiURL(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: [{ parts: [{ text: userPrompt }] }],
-        generationConfig: {
-          temperature,
-          maxOutputTokens: 8192
-        }
+        generationConfig
       })
     });
   } catch (networkErr) {
@@ -207,7 +211,7 @@ Difficulty: ${difficultyLevel}/10 (${levelDesc}).
 ${avoidList}
 Generate one multiple-choice question.`;
 
-  const raw = await callGemini(systemPrompt, userPrompt, 0.8);
+  const raw = await callGemini(systemPrompt, userPrompt, 0.8, 1024, true);
 
   // Parse the returned JSON object
   let cleaned = raw.trim().replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
@@ -222,6 +226,7 @@ Generate one multiple-choice question.`;
     }
   }
   if (!parsed || !parsed.question || !parsed.answer || !Array.isArray(parsed.options)) {
+    console.error('Adaptive question parse failed. Raw response:', raw);
     throw new Error('AI returned an unexpected format for adaptive question.');
   }
   // Guarantee answer exactly matches one option (fixes mismatch bugs)

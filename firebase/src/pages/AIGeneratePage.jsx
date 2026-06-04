@@ -273,7 +273,7 @@ export default function AIGeneratePage() {
                         className="w-full px-4 py-2.5 border-2 border-[#e5e5e5] rounded-2xl text-sm bg-white"
                         disabled={generating}
                       >
-                        {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n} cards</option>)}
+                        {[5, 10, 15, 20, 25, 30].map(n => <option key={n} value={n}>{n} cards</option>)}
                       </select>
                     </div>
                   </>
@@ -318,7 +318,7 @@ export default function AIGeneratePage() {
                         className="w-full px-4 py-2.5 border-2 border-[#e5e5e5] rounded-2xl text-sm bg-white"
                         disabled={generating}
                       >
-                        {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n} cards</option>)}
+                        {[5, 10, 15, 20, 25, 30].map(n => <option key={n} value={n}>{n} cards</option>)}
                       </select>
                     </div>
                     {pdfExtracting && (
@@ -356,7 +356,7 @@ export default function AIGeneratePage() {
                           className="w-full px-3 py-2.5 border-2 border-[#e5e5e5] rounded-2xl text-sm bg-white"
                           disabled={generating}
                         >
-                          {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
+                          {[5, 10, 15, 20, 25, 30].map(n => <option key={n} value={n}>{n}</option>)}
                         </select>
                       </div>
                       <div>

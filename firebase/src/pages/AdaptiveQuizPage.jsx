@@ -6,7 +6,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const MIN_LEVEL = 1;
 const MAX_LEVEL = 10;
-const QUESTIONS_PER_SESSION = 10;
+
+function StudyMascot({ mood = 'idle' }) {
+  const faces = {
+    idle:      { eyes: '◕ ◕', mouth: '⌣', color: '#1cb0f6', bg: '#ddf4ff', bounce: true },
+    thinking:  { eyes: '◔ ◔', mouth: '…', color: '#ff9600', bg: '#fff3d6', bounce: false },
+    correct:   { eyes: '◕ ◕', mouth: '‿', color: '#58CC02', bg: '#d7ffb8', bounce: true },
+    wrong:     { eyes: '╥ ╥', mouth: '︿', color: '#ff4b4b', bg: '#ffdfe0', bounce: false },
+    celebrate: { eyes: '★ ★', mouth: '‿', color: '#ce82ff', bg: '#f9f0ff', bounce: true },
+  };
+  const f = faces[mood] || faces.idle;
+  return (
+    <div style={{
+      display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+      animation: f.bounce ? 'mascotBounce 0.6s ease-in-out infinite alternate' : 'none',
+    }}>
+      <style>{`
+        @keyframes mascotBounce { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+        @keyframes mascotPop { 0%{transform:scale(0.7)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
+        .mascot-pop { animation: mascotPop 0.35s ease-out; }
+      `}</style>
+      <div className="mascot-pop" key={mood} style={{
+        width: 56, height: 56, borderRadius: '50%',
+        background: f.bg, border: `3px solid ${f.color}`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, fontWeight: 900, color: f.color, lineHeight: 1.3, userSelect: 'none',
+        boxShadow: `0 4px 0 ${f.color}`,
+      }}>
+        <span style={{ fontSize: 13 }}>{f.eyes}</span>
+        <span style={{ fontSize: 16 }}>{f.mouth}</span>
+      </div>
+    </div>
+  );
+}
 
 function DifficultyBar({ level }) {
   const pct = ((level - 1) / (MAX_LEVEL - 1)) * 100;
@@ -33,6 +65,7 @@ export default function AdaptiveQuizPage() {
   const [topic, setTopic] = useState('');
   const [subtopic, setSubtopic] = useState('');
   const [started, setStarted] = useState(false);
+  const [questionsPerSession, setQuestionsPerSession] = useState(30);
 
   // Quiz state
   const [level, setLevel] = useState(5);
@@ -44,8 +77,10 @@ export default function AdaptiveQuizPage() {
   const [questionNum, setQuestionNum] = useState(0);
   const [score, setScore] = useState({ correct: 0, incorrect: 0 });
   const [done, setDone] = useState(false);
+  const [mascotMood, setMascotMood] = useState('idle');
   const [history, setHistory] = useState([]); // {question, correct, level}
   const previousQuestions = useRef([]);
+  const prefetchedQuestion = useRef(null); // prefetched next question
 
   const fetchQuestion = async (currentLevel) => {
     setLoading(true);
@@ -53,6 +88,20 @@ export default function AdaptiveQuizPage() {
     setSelected(null);
     setAnswered(false);
     setQuestion(null);
+
+    // Use prefetched question if available and level matches
+    const cached = prefetchedQuestion.current;
+    if (cached && cached.level === currentLevel) {
+      prefetchedQuestion.current = null;
+      previousQuestions.current.push(cached.q.question);
+      setQuestion(cached.q);
+      setLoading(false);
+      return;
+    }
+    prefetchedQuestion.current = null;
+
+    setLoading(true);
+    setError('');
     try {
       const q = await generateAdaptiveQuestion(
         topic,
@@ -69,6 +118,13 @@ export default function AdaptiveQuizPage() {
     }
   };
 
+  const prefetchQuestion = (nextLevel) => {
+    // Fire-and-forget: fetch next question in the background
+    generateAdaptiveQuestion(topic, subtopic, nextLevel, previousQuestions.current)
+      .then(q => { prefetchedQuestion.current = { q, level: nextLevel }; })
+      .catch(() => { prefetchedQuestion.current = null; });
+  };
+
   const handleStart = (e) => {
     e.preventDefault();
     if (!topic.trim()) return;
@@ -78,6 +134,7 @@ export default function AdaptiveQuizPage() {
     setScore({ correct: 0, incorrect: 0 });
     setHistory([]);
     previousQuestions.current = [];
+    prefetchedQuestion.current = null;
     fetchQuestion(5);
   };
 
@@ -88,6 +145,8 @@ export default function AdaptiveQuizPage() {
     // Trim + case-insensitive comparison as a safety net against AI whitespace/casing issues
     const normalize = s => s.trim().toLowerCase();
     const isCorrect = normalize(option) === normalize(question.answer);
+
+    setMascotMood(isCorrect ? 'correct' : 'wrong');
 
     setScore(prev => ({
       correct: prev.correct + (isCorrect ? 1 : 0),
@@ -107,10 +166,13 @@ export default function AdaptiveQuizPage() {
       ? Math.min(level + 1, MAX_LEVEL)
       : Math.max(level - 2, MIN_LEVEL);
 
-    if (questionNum >= QUESTIONS_PER_SESSION) {
-      setTimeout(() => setDone(true), 1800);
+    if (questionNum >= questionsPerSession) {
+      setTimeout(() => { setMascotMood('celebrate'); setDone(true); }, 1800);
     } else {
+      // Start prefetching the next question immediately during the 1.8s reveal
+      prefetchQuestion(nextLevel);
       setTimeout(() => {
+        setMascotMood('idle');
         setLevel(nextLevel);
         setQuestionNum(n => n + 1);
         fetchQuestion(nextLevel);
@@ -124,6 +186,7 @@ export default function AdaptiveQuizPage() {
     setQuestion(null);
     setHistory([]);
     previousQuestions.current = [];
+    prefetchedQuestion.current = null;
     setScore({ correct: 0, incorrect: 0 });
     setLevel(5);
     setQuestionNum(0);
@@ -181,8 +244,27 @@ export default function AdaptiveQuizPage() {
                   className="w-full px-4 py-3 border-2 border-[#e5e5e5] rounded-xl font-bold text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#1cb0f6] transition"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-extrabold text-gray-700 mb-1.5 uppercase tracking-wide">Number of Questions</label>
+                <div className="flex gap-3">
+                  {[10, 20, 30].map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setQuestionsPerSession(n)}
+                      className={`flex-1 py-2.5 rounded-xl font-extrabold text-sm border-2 border-b-4 transition ${
+                        questionsPerSession === n
+                          ? 'bg-[#1cb0f6] text-white border-[#1899d6]'
+                          : 'bg-white text-gray-600 border-[#e5e5e5] hover:border-[#1cb0f6]'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="bg-[#f0f9ff] border-2 border-[#bae6fd] rounded-xl p-4 text-sm text-[#0369a1] font-bold">
-                You'll get <strong>{QUESTIONS_PER_SESSION} questions</strong>. Starting at level 5/10 — answer correctly to go up, wrong to go down.
+                You'll get <strong>{questionsPerSession} questions</strong>. Starting at level 5/10 — answer correctly to go up, wrong to go down.
               </div>
               <button
                 type="submit"
@@ -199,11 +281,24 @@ export default function AdaptiveQuizPage() {
 
   // ── Results Screen ────────────────────────────────────────────────────────
   if (done) {
-    const accuracy = Math.round((score.correct / QUESTIONS_PER_SESSION) * 100);
+    const accuracy = Math.round((score.correct / questionsPerSession) * 100);
     const avgLevel = history.length > 0
       ? (history.reduce((s, h) => s + h.level, 0) / history.length).toFixed(1)
       : level;
     const peakLevel = history.length > 0 ? Math.max(...history.map(h => h.level)) : level;
+
+    // Knowledge score: each correct answer weighted by its difficulty level
+    // Max possible = all correct at level 10 = questionsPerSession * MAX_LEVEL
+    const weightedScore = history.filter(h => h.correct).reduce((sum, h) => sum + h.level, 0);
+    const knowledgePct = Math.round((weightedScore / (questionsPerSession * MAX_LEVEL)) * 100);
+
+    const knowledgeColor = knowledgePct >= 70 ? '#58CC02' : knowledgePct >= 40 ? '#ffc800' : '#ff4b4b';
+    const knowledgeLabel = knowledgePct >= 80 ? 'Expert' : knowledgePct >= 60 ? 'Proficient' : knowledgePct >= 40 ? 'Developing' : 'Beginner';
+
+    // SVG ring params
+    const radius = 54;
+    const circumference = 2 * Math.PI * radius;
+    const dashOffset = circumference - (knowledgePct / 100) * circumference;
 
     return (
       <div className="min-h-screen bg-[#f7f7f7]">
@@ -211,13 +306,43 @@ export default function AdaptiveQuizPage() {
         <div className="max-w-2xl mx-auto px-4 py-10">
           <div className="bg-white rounded-2xl border-2 border-b-4 border-[#e5e5e5] overflow-hidden mb-6">
             <div className="bg-[#1cb0f6] p-8 text-center text-white">
-              <div className="text-5xl mb-3">{accuracy >= 80 ? '🏆' : accuracy >= 50 ? '👍' : '💪'}</div>
+              <div className="flex justify-center mb-3">
+                <StudyMascot mood="celebrate" />
+              </div>
               <h2 className="text-3xl font-black mb-1">Quiz Complete!</h2>
               <p className="text-[#bae6fd] font-bold">{topic}{subtopic ? ` · ${subtopic}` : ''}</p>
             </div>
+
+            {/* Knowledge Score Ring */}
+            <div className="flex flex-col items-center py-8 border-b border-gray-100">
+              <p className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">Knowledge Score</p>
+              <div className="relative w-36 h-36">
+                <svg className="w-36 h-36 -rotate-90" viewBox="0 0 128 128">
+                  <circle cx="64" cy="64" r={radius} fill="none" stroke="#f0f0f0" strokeWidth="12" />
+                  <circle
+                    cx="64" cy="64" r={radius}
+                    fill="none"
+                    stroke={knowledgeColor}
+                    strokeWidth="12"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    style={{ transition: 'stroke-dashoffset 1.2s ease-out, stroke 0.3s' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-black" style={{ color: knowledgeColor }}>{knowledgePct}%</span>
+                  <span className="text-xs font-extrabold text-gray-400 mt-0.5">{knowledgeLabel}</span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 font-semibold mt-3 max-w-xs text-center">
+                Correct answers weighted by difficulty — harder questions count more
+              </p>
+            </div>
+
             <div className="grid grid-cols-3 divide-x divide-gray-100 text-center py-6">
               <div>
-                <div className="text-2xl font-black text-[#58CC02]">{score.correct}</div>
+                <div className="text-2xl font-black text-[#58CC02]">{score.correct}/{questionsPerSession}</div>
                 <div className="text-xs text-gray-500 mt-1 font-bold">Correct</div>
               </div>
               <div>
@@ -283,8 +408,9 @@ export default function AdaptiveQuizPage() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">{topic}{subtopic ? ` · ${subtopic}` : ''}</p>
-              <p className="text-sm font-extrabold text-gray-700 mt-0.5">Question {questionNum} of {QUESTIONS_PER_SESSION}</p>
+              <p className="text-sm font-extrabold text-gray-700 mt-0.5">Question {questionNum} of {questionsPerSession}</p>
             </div>
+            <StudyMascot mood={mascotMood} />
             <div className="text-right">
               <p className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Difficulty</p>
               <p className="text-lg font-black text-gray-800">{level}<span className="text-sm text-gray-400">/10</span></p>
